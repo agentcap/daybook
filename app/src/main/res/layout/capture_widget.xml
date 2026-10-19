@@ -1,0 +1,7 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="12dp" android:background="#236958">
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/widget_title" android:textColor="#FFFFFF" android:textSize="17sp" android:textStyle="bold"/>
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+<Button android:id="@+id/widget_record" android:layout_width="0dp" android:layout_height="48dp" android:layout_weight="1" android:text="@string/record"/>
+<Button android:id="@+id/widget_write" android:layout_width="0dp" android:layout_height="48dp" android:layout_weight="1" android:text="@string/write"/>
+<Button android:id="@+id/widget_photo" android:layout_width="0dp" android:layout_height="48dp" android:layout_weight="1" android:text="@string/photo"/>
+</LinearLayout></LinearLayout>

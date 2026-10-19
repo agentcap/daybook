@@ -1,0 +1,1 @@
+<resources><style name="Theme.Daybook" parent="android:style/Theme.Material.Light.NoActionBar"><item name="android:fontFamily">sans</item><item name="android:windowLightStatusBar">true</item><item name="android:colorAccent">#236958</item></style></resources>

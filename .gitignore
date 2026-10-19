@@ -1,0 +1,16 @@
+/.gradle/
+/.tools/
+/local.properties
+**/build/
+**/.cxx/
+*.apk
+*.aab
+*.keystore
+*.jks
+.env*
+*.daybook
+*.sqlite*
+/captures/
+/verification/
+/.kotlin/
+**/__pycache__/
