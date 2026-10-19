@@ -308,9 +308,9 @@ fun SettingsScreen(settings: Settings, hasKey: Boolean, modelReady: Boolean, mod
                 "widget" -> SectionCard {
                     Icon(Icons.Outlined.Mic, null, Modifier.size(42.dp), tint = MaterialTheme.colorScheme.primary)
                     Text("Record from your home screen", style = MaterialTheme.typography.titleLarge)
-                    Text("Add the Daybook Record widget. Tap its microphone to start recording immediately. Stop & save from the recording notification.")
+                    Text("Add the compact 1 × 1 Daybook Record widget. Its dark theme stays easy to spot on your home screen. Tap the microphone to start recording; stop & save from the notification.")
                     Button(onClick = onAddWidget, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Outlined.Add, null); Spacer(Modifier.width(8.dp)); Text("Add Record widget") }
-                    Text("Or touch and hold an empty space on your home screen → Widgets → Daybook → Daybook Record.", style = MaterialTheme.typography.bodyMedium)
+                    Text("Touch and hold your home screen → Widgets → Daybook → Daybook Record. Already added an older widget? Touch and hold it to shrink it, or remove it and add it again.", style = MaterialTheme.typography.bodyMedium)
                     Text("The first recording needs microphone permission. If app lock is on, fingerprint authentication appears first. Finish onboarding once before using the widget.", style = MaterialTheme.typography.bodySmall)
                 }
             }

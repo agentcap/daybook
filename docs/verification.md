@@ -1,6 +1,22 @@
 # Verification
 
-Current release: 0.4.0. Earlier release results are retained below for context.
+Current release: 0.4.1. Earlier release results are retained below for context.
+
+## 0.4.1 compact dark widget verification
+
+Completed on 2026-10-19 in the isolated Android 16 x86-64 emulator:
+
+- The existing `CaptureAndSettingsTest` suite passed all 3 checks, including direct recording without duplication, recreation, focused settings, and credential save/removal.
+- The actual home-screen Record widget updated to the dark appearance. Launcher resize reduced the old three-column instance to one cell; an actual tap started recording and **Stop & save recording** saved it.
+- The system pin dialog showed **1 × 1**, and a freshly added widget occupied one column. The widget picker showed both the dark **1 × 1 Record** tile and the dark **3 × 1 Record/Write/Photo** strip without clipped controls. Three widget/settings screenshots were inspected and saved.
+- Android lint passed with 0 errors and 34 warnings. The three additional button-bar style advisories concern the deliberately filled capture-widget actions.
+- Release and verification APK builds passed. The signed, non-debuggable release retained the existing signing certificate and passed 16 KiB ZIP alignment. It upgraded the personal 0.4.0 emulator package and cold-launched successfully.
+- No journal, inference, storage, or recording logic changed. The wider 0.4.0 checks below were not rerun for this widget styling update. Physical One UI sizing remains a phone check; existing widgets can retain their launcher-assigned footprint until resized or re-added.
+
+APK: `releases/daybook-0.4.1.apk` (66,736,501 bytes).
+
+SHA-256: `b514b8046ac664b3c59e844e71d9aaccb7632ff4f0f40fdef674926edb3cb6f0`.
+
 
 ## 0.4.0 on-device review verification
 

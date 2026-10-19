@@ -12,7 +12,7 @@ Synthetic sample journal, captured from the running Android app. The meal illust
 
 ## Start on your phone
 
-1. Install `releases/daybook-0.4.0.apk`, or build the APK below. This is a signed, non-debuggable build for personal installation.
+1. Install `releases/daybook-0.4.1.apk`, or build the APK below. This is a signed, non-debuggable build for personal installation.
 2. Choose your waking hours, reminder interval, and nightly cleanup time during onboarding. Grant notification permission for check-ins.
 3. Download the English speech model (141 MB) once. Recording works before the download; saved recordings can be transcribed afterwards.
 4. Create goals from Goals → New goal. Templates include gym, cooking, laundry, blogging, learning, and 3000 calories.
@@ -55,11 +55,12 @@ Enable **Settings → Privacy & lock → Fingerprint & screen lock** to show And
 ### Record from your home screen
 
 - Open **Settings → Home-screen recording → Add Record widget**, then accept your launcher's Add prompt.
-- Or touch and hold an empty area on the home screen → **Widgets → Daybook → Daybook Record**. The larger three-action capture widget is also available.
+- Or touch and hold an empty area on the home screen → **Widgets → Daybook → Daybook Record**. Record is a compact 1 × 1 dark tile. A dark 3 × 1 Record/Write/Photo strip is also available.
 - Tap the microphone: Daybook opens and starts recording immediately, with no Start confirmation. If app lock is enabled, authenticate first. Grant microphone permission on the first recording and complete onboarding once.
 - Stop using **Stop & save** in the persistent recording notification or on Today. Repeated widget taps while recording do not create another recording.
+- After updating, touch and hold an existing widget to resize it, or remove/re-add it to apply the smaller default footprint. Removing a widget does not delete journal entries. Launcher cell sizes vary; [Android widget sizing](https://developer.android.com/develop/ui/views/appwidgets/layouts) describes the requested defaults.
 
-Install this APK over 0.1.0, 0.2.0, or 0.3.0 to retain existing notes and settings. It uses the same private signing key; no uninstall is needed.
+Install this APK over 0.1.0, 0.2.0, 0.3.0, or 0.4.0 to retain existing notes and settings. It uses the same private signing key; no uninstall is needed.
 
 ## Build
 

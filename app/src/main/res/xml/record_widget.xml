@@ -1,6 +1,6 @@
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
-    android:minWidth="180dp" android:minHeight="40dp" android:minResizeWidth="180dp" android:minResizeHeight="40dp"
-    android:targetCellWidth="3" android:targetCellHeight="1" android:initialLayout="@layout/record_widget"
+    android:minWidth="56dp" android:minHeight="56dp" android:minResizeWidth="56dp" android:minResizeHeight="56dp"
+    android:targetCellWidth="1" android:targetCellHeight="1" android:initialLayout="@layout/record_widget"
     android:previewLayout="@layout/record_widget" android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen" android:updatePeriodMillis="0"
     android:description="@string/record_widget_description" />

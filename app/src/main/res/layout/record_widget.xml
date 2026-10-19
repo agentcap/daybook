@@ -1,15 +1,12 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/record_widget_root" android:layout_width="match_parent" android:layout_height="match_parent"
-    android:orientation="horizontal" android:gravity="center_vertical" android:padding="12dp"
+    android:orientation="vertical" android:gravity="center" android:padding="6dp"
     android:background="@drawable/widget_background" android:contentDescription="@string/record_widget_description">
-    <ImageView android:layout_width="48dp" android:layout_height="48dp" android:padding="12dp"
+    <ImageView android:layout_width="28dp" android:layout_height="28dp" android:padding="4dp"
         android:background="@drawable/widget_mic_background" android:src="@drawable/ic_widget_mic"
         android:contentDescription="@null" />
-    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-        android:orientation="vertical" android:layout_marginStart="12dp">
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:text="@string/record_widget_title" android:textColor="#2E2845" android:textSize="17sp" android:textStyle="bold" />
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="3dp"
-            android:text="@string/record_widget_hint" android:textColor="#655C7A" android:textSize="12sp" />
-    </LinearLayout>
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="3dp"
+        android:text="@string/record" android:textColor="#F2EEFF" android:textSize="11sp"
+        android:fontFamily="sans-serif-medium" android:includeFontPadding="false"
+        android:maxLines="1" android:ellipsize="end" android:importantForAccessibility="no" />
 </LinearLayout>
