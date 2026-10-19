@@ -89,7 +89,7 @@ private fun clockText(value: String) = LocalTime.parse(value).format(DateTimeFor
         }
         SectionCard {
             Text("A little help at day’s end", style = MaterialTheme.typography.titleLarge)
-            Text("Cleanup sends your selected day’s note text and all journal-attached photos to OpenAI using your own API key. Audio is never uploaded. AI suggestions only affect goals after you confirm.")
+            Text("Choose OpenAI or on-device text cleanup in Settings. OpenAI cleanup sends your selected day’s note text and all journal-attached photos to OpenAI using your own API key. Audio is never uploaded. AI suggestions only affect goals after you confirm.")
             ToggleRow("Allow OpenAI daily reviews", "You can change this and enter your key in Settings.", s.cloudConsent, onChange = { s = s.copy(cloudConsent = it) })
             Text("API requests disable response storage, but provider retention rules can still apply.", style = MaterialTheme.typography.bodySmall)
         }
@@ -118,7 +118,9 @@ private fun clockText(value: String) = LocalTime.parse(value).format(DateTimeFor
 fun SettingsScreen(settings: Settings, hasKey: Boolean, modelReady: Boolean, modelWork: WorkInfo?, mediaBytes: Long, modelBytes: Long,
     day: String, modifier: Modifier, onSave: suspend (Settings) -> Unit, onKey: suspend (String) -> Unit, onDownload: () -> Unit,
     onDeleteModel: () -> Unit, onPauseDownload: () -> Unit, onBackup: () -> Unit, onRestore: () -> Unit,
-    onMarkdown: () -> Unit, onPermissions: () -> Unit, onBattery: () -> Unit, onAddWidget: () -> Unit) {
+    onMarkdown: () -> Unit, onPermissions: () -> Unit, onBattery: () -> Unit, onAddWidget: () -> Unit,
+    localReady: Boolean, localWork: WorkInfo?, localBytes: Long, onLocalDownload: () -> Unit,
+    onLocalPause: () -> Unit, onLocalDelete: suspend () -> Unit) {
     var page by rememberSaveable { mutableStateOf<String?>(null) }
     var draft by remember(settings) { mutableStateOf(settings) }
     var apiKey by remember { mutableStateOf("") }
@@ -127,6 +129,7 @@ fun SettingsScreen(settings: Settings, hasKey: Boolean, modelReady: Boolean, mod
     var saved by remember { mutableStateOf("") }
     var saving by remember { mutableStateOf(false) }
     var deleteModel by remember { mutableStateOf(false) }
+    var deleteLocal by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     fun task(message: String, action: suspend () -> Unit) {
         scope.launch {
@@ -151,7 +154,7 @@ fun SettingsScreen(settings: Settings, hasKey: Boolean, modelReady: Boolean, mod
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 SettingsLink(Icons.Outlined.MicNone, "Voice & offline speech", if (modelReady) "English · ready offline" else "Download speech model · 141 MB") { page = "voice" }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                SettingsLink(Icons.Outlined.AutoAwesome, "AI daily reviews", if (!hasKey) "Add your OpenAI key to get started" else if (settings.cloudConsent) "Ready · ${if (settings.autoCleanup) "nightly & on demand" else "on demand"}" else "Key saved · reviews paused") { page = "ai" }
+                SettingsLink(Icons.Outlined.AutoAwesome, "AI daily reviews", if (settings.reviewProvider == "local") (if (localReady) "On-device · ready offline" else "On-device · download model to start") else if (!hasKey) "Add your OpenAI key to get started" else if (settings.cloudConsent) "Ready · ${if (settings.autoCleanup) "nightly & on demand" else "on demand"}" else "Key saved · reviews paused") { page = "ai" }
             }
             SectionCard {
                 Text("YOUR JOURNAL", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
@@ -207,12 +210,44 @@ fun SettingsScreen(settings: Settings, hasKey: Boolean, modelReady: Boolean, mod
                 }
                 "ai" -> {
                     SectionCard {
-                        ToggleRow("Allow OpenAI reviews", "Sends this day’s text and attached photos, with existing goals and list titles for context. Audio stays on your phone.", settings.cloudConsent, { save(settings.copy(cloudConsent = it)) }, !saving)
-                        ToggleRow("Automatic nightly cleanup", "Uses your saved key and internet connection.", settings.autoCleanup, { save(settings.copy(autoCleanup = it)) }, !saving)
-                        TimeSetting("Nightly review time", settings.cleanupTime) { save(settings.copy(cleanupTime = it)) }
-                        Text("Originals are preserved. Review goal progress and calorie estimates before they count.", style = MaterialTheme.typography.bodySmall)
+                        Text("Where should reviews run?", style = MaterialTheme.typography.titleMedium)
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            FilterChip(selected = settings.reviewProvider == "openai", enabled = !saving,
+                                onClick = { save(settings.copy(reviewProvider = "openai")) }, label = { Text("OpenAI") })
+                            FilterChip(selected = settings.reviewProvider == "local", enabled = !saving,
+                                onClick = { save(settings.copy(reviewProvider = "local")) }, label = { Text("On-device") })
+                        }
+                        Text(if (settings.reviewProvider == "local") "Text cleanup and suggestions stay on this phone. No API key is needed. Photos remain attached but are not analyzed."
+                            else "Review text and attached photos with your own OpenAI key. Audio stays on this phone.", style = MaterialTheme.typography.bodyMedium)
                     }
                     SectionCard {
+                        if (settings.reviewProvider == "openai") ToggleRow("Allow OpenAI reviews", "Sends this day’s text and attached photos, with existing goals and list titles for context. Audio stays on your phone.", settings.cloudConsent, { save(settings.copy(cloudConsent = it)) }, !saving)
+                        ToggleRow("Automatic nightly cleanup", if (settings.reviewProvider == "local") "Runs on this phone after downloading the review model." else "Uses your saved key and internet connection.", settings.autoCleanup, { save(settings.copy(autoCleanup = it)) }, !saving)
+                        TimeSetting("Nightly review time", settings.cleanupTime) { save(settings.copy(cleanupTime = it)) }
+                        Text("Originals are preserved. Review new goals, list items, progress, and calorie estimates before applying them.", style = MaterialTheme.typography.bodySmall)
+                    }
+                    if (settings.reviewProvider == "local") {
+                        SectionCard {
+                            Icon(Icons.Outlined.PhoneAndroid, null, Modifier.size(32.dp), tint = MaterialTheme.colorScheme.primary)
+                            Text("Qwen 2.5 · 1.5B", style = MaterialTheme.typography.titleLarge)
+                            Text(if (localReady) "Review model ready · works in airplane mode" else "One-time download · 1.1 GB", style = MaterialTheme.typography.titleSmall)
+                            Text("Creates a cleaned journal, summary, and reviewable suggestions from note text. Best for shorter days; larger days can take a few minutes and use more battery.", style = MaterialTheme.typography.bodyMedium)
+                            when (localWork?.state) {
+                                WorkInfo.State.RUNNING -> {
+                                    LinearProgressIndicator(progress = { localWork.progress.getInt("percent", 0) / 100f }, modifier = Modifier.fillMaxWidth())
+                                    Text(if (localWork.progress.getBoolean("verifying", false)) "Verifying the model…" else "Downloading · ${localWork.progress.getInt("percent", 0)}%")
+                                }
+                                WorkInfo.State.ENQUEUED -> Text("Download queued · waiting for a connection or retry.")
+                                WorkInfo.State.FAILED -> Text(localWork.outputData.getString("error") ?: "Download failed. Try again.", color = MaterialTheme.colorScheme.error)
+                                WorkInfo.State.CANCELLED -> if (!localReady) Text("Download paused. Continue when you are ready.")
+                                else -> Unit
+                            }
+                            if (localWork?.state in setOf(WorkInfo.State.RUNNING, WorkInfo.State.ENQUEUED)) OutlinedButton(onClick = onLocalPause) { Text("Pause review model download") }
+                            else Button(onClick = onLocalDownload, enabled = !localReady && !saving) { Text(if (localReady) "Review model ready" else "Download review model") }
+                            if (localBytes > 0) TextButton(onClick = { deleteLocal = true }, enabled = !saving) { Text("Remove review model") }
+                            Text("Download is checked before installation. The model is excluded from backups. Daybook never switches to OpenAI automatically.", style = MaterialTheme.typography.bodySmall)
+                        }
+                    } else SectionCard {
                         Text(if (hasKey) "Your API key is saved" else "Connect your OpenAI key", style = MaterialTheme.typography.titleMedium)
                         Text("Your key is encrypted on this phone and excluded from backups. OpenAI API usage is billed to your account.", style = MaterialTheme.typography.bodySmall)
                         OutlinedTextField(apiKey, { apiKey = it }, Modifier.fillMaxWidth(), label = { Text(if (hasKey) "Replace API key" else "OpenAI API key") },
@@ -264,6 +299,8 @@ fun SettingsScreen(settings: Settings, hasKey: Boolean, modelReady: Boolean, mod
                         Text("On this phone", style = MaterialTheme.typography.titleMedium)
                         Text("Journal media · ${byteText(mediaBytes)}")
                         Text("Speech model · ${byteText(modelBytes)}")
+                        Text("Review model · ${byteText(localBytes)}")
+                        if (localBytes > 0) TextButton(onClick = { deleteLocal = true }) { Text("Remove review model") }
                         if (modelReady) TextButton(onClick = { deleteModel = true }) { Text("Remove speech model") }
                         Text("Remove individual recordings and photos by deleting their note. Removing the model keeps your recordings; download it again to transcribe.", style = MaterialTheme.typography.bodySmall)
                     }
@@ -283,6 +320,10 @@ fun SettingsScreen(settings: Settings, hasKey: Boolean, modelReady: Boolean, mod
         }
         Spacer(Modifier.height(12.dp))
     }
+    if (deleteLocal) AlertDialog(onDismissRequest = { deleteLocal = false }, title = { Text("Remove review model?") },
+        text = { Text("Your notes and reviews stay saved. Download it again before using on-device cleanup.") },
+        confirmButton = { TextButton(onClick = { deleteLocal = false; task("Review model removed") { onLocalDelete() } }) { Text("Remove model") } },
+        dismissButton = { TextButton(onClick = { deleteLocal = false }) { Text("Keep model") } })
     if (deleteModel) AlertDialog(onDismissRequest = { deleteModel = false }, title = { Text("Remove speech model?") },
         text = { Text("Your voice notes stay saved. Download the model again before transcribing.") },
         confirmButton = { TextButton(onClick = { onDeleteModel(); deleteModel = false }) { Text("Remove model") } },

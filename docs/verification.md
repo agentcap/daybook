@@ -1,6 +1,37 @@
 # Verification
 
-Current release: 0.3.0. Earlier release results are retained below for context.
+Current release: 0.4.0. Earlier release results are retained below for context.
+
+## 0.4.0 on-device review verification
+
+Completed on 2026-10-19 in the isolated Android 16 x86-64 emulator:
+
+| Check | Result |
+| --- | --- |
+| JVM rules, local protocol, legacy data, client failures, archive, HTTP, and authentication lifecycle | 40 tests passed (31 core, 9 app) |
+| Regular Android workflows | 21 passed (runner reports 30 including 9 skipped opt-in cases) |
+| Actual local model | All 4 opt-in checks passed: verified Qwen download; airplane-mode cleanup with new goal, to-do, and idea proposals; completed goal activity; future plans excluded from progress |
+| Original content and confirmation | Original text retained; suggestions remain pending and do not change confirmed goal counts automatically |
+| Runtime coexistence | Actual whisper.cpp transcription passed after local LLM inference in the same process |
+| Provider switching | Local mode needs neither a key nor cloud consent; queued cloud work is replaced with the selected provider and appropriate network constraints; missing models fail clearly without changing originals |
+| Visual review | 19 app screenshots refreshed; the two new provider/model settings screens inspected; earlier actual home-screen widget screenshot retained |
+| Android lint | 0 errors, 31 warnings |
+| Signed release | Non-debuggable, same signing certificate as earlier releases; ARM64 and x86-64; 16 KiB ZIP and all native ELF load alignment verified |
+| Native isolation | Both local LLM libraries export only their JNI entry point, keeping their ggml symbols separate from whisper.cpp |
+| APK contents | Includes the runtime license; excludes downloaded models, backup archives, and signing credentials |
+| Update installation | Installed over the personal 0.3.0 emulator package and cold-launched successfully |
+| Installer | Windows installer syntax passed |
+
+APK: `releases/daybook-0.4.0.apk` (66,736,393 bytes).
+
+SHA-256: `96f7cf899dff5c73522f4dcf4b753c6c704db99c5f8a390123596c3e69e066bc`.
+
+The actual mixed-note fixture completed its local review in about 17.6 seconds on this emulator with airplane mode and no active network. All four real-model cases completed in 55.064 seconds with models already available for the final run. These are small synthetic fixtures, not phone performance or broad model-quality measurements. The settings screenshots show the actual downloaded model state; other displayed journal content and review suggestions in the screenshot tour remain fixtures.
+
+The on-device model accepts text only. Photos remain attached but are not analyzed; a photo-only day needs a caption or an explicit switch to OpenAI. Local generation has input/output and time limits and can take minutes on larger days. Failures preserve originals and previous reviews. Follow [the on-device setup and opt-in test instructions](local-model.md) to repeat the real-model checks.
+
+Physical S26 Ultra inference speed, memory use, thermals, microphone behavior, fingerprint hardware, One UI widgets, and Samsung background restrictions still require phone testing. No live OpenAI request was made.
+
 
 ## 0.3.0 update verification
 
@@ -63,7 +94,8 @@ The app has not been tested on a physical Galaxy S26 Ultra. Before relying on it
 3. Check reminders during waking hours, snooze, quiet hours, a reboot, and Samsung battery-saving/sleeping-app configurations. Approximate scheduling can be delayed by the OS.
 4. Enter your own OpenAI API key, enable cloud reviews, attach a food photo, and run a daily review. Confirm source preservation and review a calorie suggestion before applying it.
 5. Enable the app lock, switch away and return, and verify that the fingerprint prompt appears automatically. Add Daybook Record from the One UI widget picker and check one-tap recording with the app unlocked and locked. Confirm scheduled cleanup still works after the device's first unlock.
-6. Export a full encrypted backup and test restoring it in the isolated verification app or after safeguarding existing data.
+6. Select **Settings → AI daily reviews → On-device**, download the separate review model, and run cleanup in airplane mode. Check short and long days, goal/to-do/idea suggestions, battery use, and heat. Confirm photo-only days request text and that no cloud request happens automatically.
+7. Export a full encrypted backup and test restoring it in the isolated verification app or after safeguarding existing data.
 
 No live OpenAI key was supplied for development. Provider integration is checked with mocked HTTP responses; an actual paid cleanup request remains a user setup check.
 

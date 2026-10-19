@@ -4,4 +4,4 @@ dependencyResolutionManagement {
     repositories { google(); mavenCentral() }
 }
 rootProject.name = "Daybook"
-include(":app", ":core")
+include(":app", ":core", ":local-llm")

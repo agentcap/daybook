@@ -116,11 +116,12 @@ fun TodayScreen(state: Snapshot, day: String, recording: Boolean, work: WorkInfo
                         }
                     }
                     TextButton(onClick = { reviewExpanded = !reviewExpanded }) { Text(if (reviewExpanded) "Hide journal" else "Read cleaned journal") }
+                    if (latest.provider == "local") Text("On-device text review · attached photos were not analyzed.", style = MaterialTheme.typography.bodySmall)
                     Text("${latest.model} · ${Instant.ofEpochMilli(latest.created).atZone(ZoneId.systemDefault()).toLocalTime().withSecond(0).withNano(0)}", style = MaterialTheme.typography.labelSmall)
                 }
                 when (work?.state) {
-                    WorkInfo.State.ENQUEUED, WorkInfo.State.BLOCKED -> Text("Review queued · waiting for network or a scheduled retry.", style = MaterialTheme.typography.bodySmall)
-                    WorkInfo.State.RUNNING -> { LinearProgressIndicator(Modifier.fillMaxWidth()); Text("Cleaning up your day…") }
+                    WorkInfo.State.ENQUEUED, WorkInfo.State.BLOCKED -> Text("Waiting to run · your notes are saved.", style = MaterialTheme.typography.bodySmall)
+                    WorkInfo.State.RUNNING -> { LinearProgressIndicator(Modifier.fillMaxWidth()); Text(work.progress.getString("message") ?: "Cleaning up your day…") }
                     WorkInfo.State.FAILED -> Text(work.outputData.getString("error") ?: "Cleanup failed. Try again.", color = MaterialTheme.colorScheme.error)
                     else -> Unit
                 }

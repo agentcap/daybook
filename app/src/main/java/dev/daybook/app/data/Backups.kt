@@ -112,6 +112,7 @@ class Backups(private val context: Context, private val repo: JournalRepository,
             }
             state.reviews.filter { it.day == day }.sortedBy { it.created }.forEach {
                 appendLine("## Cleaned review · ${java.time.Instant.ofEpochMilli(it.created)}"); appendLine()
+                if (it.provider == "local") appendLine("On-device text review; attached photos were not analyzed.")
                 appendLine(it.summary); appendLine(); appendLine(it.journal); appendLine()
                 it.captions.forEach { c -> appendLine("Photo ${c.attachmentId}: ${c.description}") }
             }

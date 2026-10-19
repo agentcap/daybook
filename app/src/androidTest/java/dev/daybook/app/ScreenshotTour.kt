@@ -90,7 +90,14 @@ class ScreenshotTour {
         compose.onNodeWithText("Privacy & lock").performScrollTo().performClick(); shot("10-privacy")
         compose.onNodeWithText("All settings").performScrollTo().performClick()
         compose.onNodeWithText("Home-screen recording").performScrollTo().performClick(); shot("11-widget")
-        runBlocking { graph.preferences.save(graph.preferences.read().copy(theme = "dark")) }
+        compose.onNodeWithText("All settings").performScrollTo().performClick()
+        compose.onNodeWithText("AI daily reviews").performScrollTo().performClick()
+        compose.onNodeWithText("On-device", substring = false).performClick()
+        compose.waitUntil(10000) { graph.settings.value.reviewProvider == "local" }
+        shot("19-review-provider")
+        compose.onNodeWithText("Download is checked before installation. The model is excluded from backups. Daybook never switches to OpenAI automatically.").performScrollTo()
+        shot("20-local-model")
+        runBlocking { graph.saveSettings(graph.preferences.read().copy(reviewProvider = "openai", theme = "dark")) }
         compose.onNodeWithText("Today", substring = false).performClick()
         compose.waitUntil(10000) { graph.settings.value.theme == "dark" }; compose.waitForIdle(); shot("07-dark")
         compose.runOnUiThread { compose.activity.setContent {

@@ -12,17 +12,25 @@ Synthetic sample journal, captured from the running Android app. The meal illust
 
 ## Start on your phone
 
-1. Install `releases/daybook-0.3.0.apk`, or build the APK below. This is a signed, non-debuggable build for personal installation.
+1. Install `releases/daybook-0.4.0.apk`, or build the APK below. This is a signed, non-debuggable build for personal installation.
 2. Choose your waking hours, reminder interval, and nightly cleanup time during onboarding. Grant notification permission for check-ins.
 3. Download the English speech model (141 MB) once. Recording works before the download; saved recordings can be transcribed afterwards.
 4. Create goals from Goals → New goal. Templates include gym, cooking, laundry, blogging, learning, and 3000 calories.
-5. For daily AI reviews, open **Settings → AI daily reviews**, save your own OpenAI API key, and turn on **Allow OpenAI reviews**. Offline capture and manual goal tracking need no key.
+5. For daily AI reviews, open **Settings → AI daily reviews**. Choose **On-device** and download its model for offline text cleanup, or choose **OpenAI**, save your own API key, and turn on **Allow OpenAI reviews**. Capture and manual tracking need no key.
 
 A note can be written, recorded, or photographed. Tap a saved note to play its original audio, inspect its original text and earlier revisions, edit it, retry transcription, or delete it.
 
 The Today screen shows **distinct goals worked on that day**. Logging partial effort counts even with amount zero; completing a goal is separate. Daily and weekly numeric progress is calculated by the app. Weekly goals use Monday–Sunday, and historical views only include activity through the selected day.
 
-AI reviews include the selected day's note text and **all photos attached to its journal**, rather than the phone's entire gallery. Original audio never leaves the phone. Generated reviews have their own revision history. Goal and calorie suggestions require your confirmation and can be edited, dismissed, or undone. A later note/edit marks the review outdated; refresh it to include the new content.
+OpenAI reviews include the selected day's note text and **all photos attached to its journal**, rather than the phone's entire gallery. On-device reviews use note text only. Original audio never leaves the phone. Generated reviews have their own revision history. Goal and calorie suggestions require your confirmation and can be edited, dismissed, or undone. A later note/edit marks the review outdated; refresh it to include the new content.
+
+## Choose local or cloud reviews
+
+In **Settings → AI daily reviews**, choose **On-device** for note-text cleanup, summaries, goal progress, and new goal/to-do/idea suggestions without an API key. Download the Qwen 2.5 1.5B review model once (1.1 GB), then use **Clean up now** or automatic nightly cleanup in airplane mode. This download is separate from the speech model. Its hash is checked before installation; pause/resume and removal are available in Settings.
+
+Local reviews preserve original notes and use the same source checks and approval rules as OpenAI. Photos remain attached but are **not analyzed locally**. Add a caption or note for a photo-only day, or choose OpenAI for image understanding. There is no automatic cloud fallback. Longer days can take minutes or exceed the local context/output limits; failures preserve all originals. Performance on a physical S26 Ultra remains to be measured.
+
+Switching providers requeues unfinished cleanup with the appropriate network requirements. A request already sent to OpenAI cannot be retracted. The local model stays outside APKs, Git, and backups; download it again after restoring on a new phone. See [local model details](docs/local-model.md).
 
 ## Recording, reflection, and plans
 
@@ -51,7 +59,7 @@ Enable **Settings → Privacy & lock → Fingerprint & screen lock** to show And
 - Tap the microphone: Daybook opens and starts recording immediately, with no Start confirmation. If app lock is enabled, authenticate first. Grant microphone permission on the first recording and complete onboarding once.
 - Stop using **Stop & save** in the persistent recording notification or on Today. Repeated widget taps while recording do not create another recording.
 
-Install this APK over 0.1.0 or 0.2.0 to retain existing notes and settings. It uses the same private signing key; no uninstall is needed.
+Install this APK over 0.1.0, 0.2.0, or 0.3.0 to retain existing notes and settings. It uses the same private signing key; no uninstall is needed.
 
 ## Build
 
@@ -72,7 +80,7 @@ python3 scripts/create-signing-key.py
 bash scripts/build.sh :app:assembleRelease
 ```
 
-Personal APK: `app/build/outputs/apk/release/app-release.apk`. Developer APK: `app/build/outputs/apk/debug/app-debug.apk`. ARM64 for phones and x86-64 for emulator checks are included. Gradle, Android plugins, direct libraries, whisper.cpp, and the speech model revision/checksum are pinned.
+Personal APK: `app/build/outputs/apk/release/app-release.apk`. Developer APK: `app/build/outputs/apk/debug/app-debug.apk`. ARM64 for phones and x86-64 for emulator checks are included. Gradle, Android plugins, direct libraries, whisper.cpp, llama.cpp, and both model revisions/checksums are pinned.
 
 On this computer, the initial build reused the installed toolchain under `/home/pyarla/splitwise_ai/.tools/android/` through ignored local configuration; the new app has no source or runtime dependency on that project.
 
@@ -117,7 +125,8 @@ Use full encrypted backup/restore to preserve audio and photos. Markdown export 
 ## Source
 
 - `app`: Android UI, Room persistence, DataStore preferences, capture, reminders, OpenAI client, backups, widget, and biometric gate.
-- `core`: journal models, goal calculations, review validation, scheduling rules, and segmented encrypted archive format.
+- `core`: journal models, goal calculations, review validation, local structured-output grammar, scheduling rules, and segmented encrypted archive format.
+- `local-llm`: isolated llama.cpp Android binding for local text reviews. Its native symbols are kept separate from whisper.cpp.
 - `vendor/whisper.cpp`: pinned upstream submodule, v1.8.7 / `48f628a84833905ee4a0658ee6d4a5c915ce1997`.
 
 Future additions: weekly reflections, optional mood/energy check-ins, and goal consistency trends.

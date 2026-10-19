@@ -35,13 +35,19 @@ class AppGraph(val context: Context) {
     val keys = KeyVault(context)
     val media = MediaStore(context)
     val model = SpeechModel(context)
+    val localModel = LocalModel(context)
     val transcriptions = Transcriptions(context)
     val scheduler = Scheduler(context)
     val cleanup = CleanupJobs(context)
     val backup = Backups(context, repository, preferences, media)
     val state = repository.changes.stateIn(scope, SharingStarted.Eagerly, Snapshot())
     val settings = preferences.changes.stateIn(scope, SharingStarted.Eagerly, Settings())
-    suspend fun saveSettings(s: Settings) { preferences.save(s); scheduler.reschedule() }
+    suspend fun saveSettings(s: Settings) {
+        val previous = preferences.read()
+        preferences.save(s)
+        if (previous.reviewProvider != s.reviewProvider) cleanup.reconfigure(s.reviewProvider)
+        scheduler.reschedule()
+    }
     suspend fun deleteEntry(id: String) {
         transcriptions.cancel(id)
         repository.deleteEntry(id).forEach { media.file(it.path).delete() }

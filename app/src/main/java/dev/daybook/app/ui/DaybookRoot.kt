@@ -131,7 +131,9 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
                 if (uri == null) { pass?.fill('\u0000') } else if (pass != null) run {
                     busy = "Validating and restoring backup…"
                     try {
-                        withContext(Dispatchers.IO) { graph.backup.restore(uri, pass) }; graph.scheduler.reschedule()
+                        withContext(Dispatchers.IO) { graph.backup.restore(uri, pass) }
+                        graph.cleanup.reconfigure(graph.preferences.read().reviewProvider)
+                        graph.scheduler.reschedule()
                         graph.repository.read().entries.filter { it.status == "pending" }.forEach { graph.transcriptions.enqueue(it.id) }
                         snacks.showSnackbar("Journal restored. Enter your API key separately if needed.")
                     } finally { busy = null }
@@ -162,6 +164,10 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
             }
             val cleanupInfos by remember(day) { WorkManager.getInstance(activity).getWorkInfosForUniqueWorkFlow("cleanup-$day") }.collectAsState(emptyList())
             val modelInfos by remember { WorkManager.getInstance(activity).getWorkInfosForUniqueWorkFlow("speech-model") }.collectAsState(emptyList())
+            val localInfos by remember { WorkManager.getInstance(activity).getWorkInfosForUniqueWorkFlow(dev.daybook.app.ai.LocalModel.WORK) }.collectAsState(emptyList())
+            var localRevision by remember { mutableIntStateOf(0) }
+            val localReady = remember(localInfos, localRevision) { graph.localModel.ready() }
+            val localInfo = localInfos.firstOrNull { !it.state.isFinished } ?: localInfos.firstOrNull()
             val cleanupInfo = cleanupInfos.firstOrNull { !it.state.isFinished } ?: cleanupInfos.firstOrNull()
             var modelRevision by remember { mutableIntStateOf(0) }
             val modelReady = remember(modelInfos, modelRevision) { graph.model.ready() }
@@ -187,7 +193,7 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
                     0 -> TodayScreen(state, day, active, cleanupInfo, Modifier.padding(padding),
                         onDate = { day = it }, onWrite = { write = true }, onVoice = ::startRecording, onPhoto = { photo = true },
                         onStop = { activity.startService(Intent(activity, RecordingService::class.java).setAction(RecordingService.STOP)) },
-                        onEntry = { selectedEntry = it }, onCleanup = { graph.cleanup.enqueue(day, force = true) },
+                        onEntry = { selectedEntry = it }, onCleanup = { graph.cleanup.enqueue(day, force = true, provider = settings.reviewProvider) },
                         onSuggestion = { selectedSuggestion = it }, onReject = { run { graph.repository.reject(it) } },
                         onUndo = { run { graph.repository.undo(it) } }, onLog = { logGoal = it }, onGoals = { tab = 1 }, onLists = { initiallySuggestions = true; tab = 4 })
                     1 -> GoalsScreen(state, day, Modifier.padding(padding), onNew = { newGoal = true }, onLog = { logGoal = it },
@@ -214,7 +220,9 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
                                 val manager = android.appwidget.AppWidgetManager.getInstance(activity)
                                 if (manager.isRequestPinAppWidgetSupported) manager.requestPinAppWidget(android.content.ComponentName(activity, dev.daybook.app.widget.RecordWidget::class.java), null, null)
                                 else scope.launch { snacks.showSnackbar("Touch and hold your home screen, then choose Widgets → Daybook → Daybook Record.") }
-                            })
+                            }, localReady = localReady, localWork = localInfo, localBytes = graph.localModel.usage(),
+                        onLocalDownload = { graph.localModel.download() }, onLocalPause = { graph.localModel.pause() },
+                        onLocalDelete = { graph.localModel.delete(); localRevision++ })
                     }
                 }
             }

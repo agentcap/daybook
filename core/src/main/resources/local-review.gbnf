@@ -1,0 +1,15 @@
+root ::= "{" ws "\"journal\"" ws ":" ws string "," ws "\"summary\"" ws ":" ws string "," ws "\"captions\"" ws ":" ws "[" ws "]" ws "," ws "\"goalActivity\"" ws ":" ws progress "," ws "\"newGoals\"" ws ":" ws goal-group "," ws "\"todos\"" ws ":" ws plan-group "," ws "\"ideas\"" ws ":" ws plan-group "}" ws
+evaluation-no ::= "false" ws "," ws "\"amount\"" ws ":" ws "0" ws "," ws "\"note\"" ws ":" ws string "," ws "\"sources\"" ws ":" ws "[" ws "]" ws "," ws "\"estimated\"" ws ":" ws "false" ws "}" ws
+evaluation-yes ::= "true" ws "," ws "\"amount\"" ws ":" ws number "," ws "\"note\"" ws ":" ws string "," ws "\"sources\"" ws ":" ws sources "," ws "\"estimated\"" ws ":" ws boolean "}" ws
+goal-group ::= "{" ws "\"found\"" ws ":" ws (empty-group | "true" ws "," ws "\"items\"" ws ":" ws "[" ws goal-item ("," ws goal-item)* "]" ws "}" ws)
+plan-group ::= "{" ws "\"found\"" ws ":" ws (empty-group | "true" ws "," ws "\"items\"" ws ":" ws "[" ws plan-item ("," ws plan-item)* "]" ws "}" ws)
+empty-group ::= "false" ws "," ws "\"items\"" ws ":" ws "[" ws "]" ws "}" ws
+goal-item ::= "{" ws "\"title\"" ws ":" ws string "," ws "\"details\"" ws ":" ws string "," ws "\"sources\"" ws ":" ws sources "," ws "\"period\"" ws ":" ws period "," ws "\"target\"" ws ":" ws number "," ws "\"unit\"" ws ":" ws string "," ws "\"checklist\"" ws ":" ws boolean "}" ws
+plan-item ::= "{" ws "\"title\"" ws ":" ws string "," ws "\"details\"" ws ":" ws string "," ws "\"sources\"" ws ":" ws sources "}" ws
+period ::= ("\"daily\"" | "\"weekly\"" | "\"once\"") ws
+sources ::= "[" ws entry-reference ("," ws entry-reference)* "]" ws
+string ::= "\"" char* "\"" ws
+char ::= [^"\\\x00-\x1f] | "\\" (["\\/bfnrt] | "u" [0-9a-fA-F]{4})
+number ::= ("0" | [1-9] [0-9]{0,8}) ("." [0-9]{1,4})? ws
+boolean ::= ("true" | "false") ws
+ws ::= [ \t\n\r]{0,8}

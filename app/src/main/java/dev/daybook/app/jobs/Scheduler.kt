@@ -20,7 +20,7 @@ class Scheduler(private val context: Context) {
         val settings = context.daybook.preferences.read()
         alarms.cancel(pending(REMIND, 10)); alarms.cancel(pending(SNOOZED, 11))
         val work = WorkManager.getInstance(context)
-        if (settings.onboarded && settings.autoCleanup && settings.cloudConsent) {
+        if (settings.onboarded && settings.autoCleanup && ReviewPolicy.allowed(settings)) {
             val now = ZonedDateTime.now()
             val dueThrough = if (now.toLocalTime() >= LocalTime.parse(settings.cleanupTime)) now.toLocalDate() else now.toLocalDate().minusDays(1)
             val missed = work.getWorkInfosByTag("nightly-dispatch").get(10, TimeUnit.SECONDS)
@@ -28,7 +28,7 @@ class Scheduler(private val context: Context) {
                 .filter { it.startsWith("nightly-day:") }
                 .mapNotNull { runCatching { LocalDate.parse(it.substringAfter(':')) }.getOrNull() }
                 .filter { !it.isAfter(dueThrough) }.distinct()
-            missed.forEach { context.daybook.cleanup.enqueue(it.toString()) }
+            missed.forEach { context.daybook.cleanup.enqueue(it.toString(), provider = settings.reviewProvider) }
         }
         work.cancelAllWorkByTag("nightly-dispatch").result.get(10, TimeUnit.SECONDS)
         if (!settings.onboarded) return@withContext
@@ -38,7 +38,7 @@ class Scheduler(private val context: Context) {
     }
     suspend fun scheduleNextCleanup() {
         val settings = context.daybook.preferences.read()
-        if (!settings.onboarded || !settings.autoCleanup || !settings.cloudConsent) return
+        if (!settings.onboarded || !settings.autoCleanup || !ReviewPolicy.allowed(settings)) return
         val now = ZonedDateTime.now()
         val next = Schedule.nextCleanup(now, settings)
         val request = OneTimeWorkRequestBuilder<NightlyDispatchWorker>()
@@ -103,9 +103,9 @@ class NightlyDispatchWorker(context: Context, params: WorkerParameters) : Corout
     override suspend fun doWork(): Result {
         val graph = applicationContext.daybook
         val s = graph.preferences.read()
-        if (s.onboarded && s.autoCleanup && s.cloudConsent) {
+        if (s.onboarded && s.autoCleanup && ReviewPolicy.allowed(s)) {
             val day = inputData.getString("day") ?: LocalDate.now().toString()
-            graph.cleanup.enqueue(day)
+            graph.cleanup.enqueue(day, provider = s.reviewProvider)
         }
         // Enqueue the next date without cancelling this dispatch or the independent cleanup request.
         graph.scheduler.scheduleNextCleanup()

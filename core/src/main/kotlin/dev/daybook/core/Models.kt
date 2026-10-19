@@ -19,8 +19,8 @@ data class Goal(val id: String = newId(), val title: String, val period: String 
 data class Activity(val id: String = newId(), val goalId: String, val day: String, val amount: Double = 0.0,
     val note: String = "", val sources: List<String> = emptyList(), val undone: Boolean = false,
     val created: Long = System.currentTimeMillis(), val sourceKey: String = "")
-data class Review(val id: String = newId(), val day: String, val fingerprint: String, val journal: String, val summary: String,
-    val captions: List<PhotoCaption> = emptyList(), val created: Long = System.currentTimeMillis(), val model: String, val sourceIds: List<String> = emptyList())
+data class Review(val id: String = newId(), val day: String = "", val fingerprint: String = "", val journal: String = "", val summary: String = "",
+    val captions: List<PhotoCaption> = emptyList(), val created: Long = System.currentTimeMillis(), val model: String = "", val sourceIds: List<String> = emptyList(), val provider: String = "openai")
 data class PhotoCaption(val attachmentId: String, val description: String)
 data class Suggestion(val id: String = newId(), val reviewId: String, val goalId: String, val day: String,
     val amount: Double, val note: String, val sources: List<String>, val estimated: Boolean = false, val status: String = "pending")
@@ -31,7 +31,7 @@ data class Snapshot(val entries: List<Entry> = emptyList(), val revisions: List<
 data class Settings(val onboarded: Boolean = false, val wake: String = "09:00", val sleep: String = "22:00",
     val intervalHours: Int = 3, val cleanupTime: String = "22:00", val reminders: Boolean = true,
     val autoCleanup: Boolean = true, val model: String = "gpt-5.4-mini", val biometric: Boolean = false,
-    val theme: String = "system", val cloudConsent: Boolean = false)
+    val theme: String = "system", val cloudConsent: Boolean = false, val reviewProvider: String = "openai")
 data class BackupBundle(val version: Int = 1, val state: Snapshot, val settings: Settings)
 
 object JournalRules {
@@ -48,6 +48,7 @@ object JournalRules {
         require(s.intervalHours in 1..12) { "Reminder interval must be between 1 and 12 hours." }
         require(s.model.matches(Regex("[a-zA-Z0-9._-]{1,100}"))) { "Enter a valid model name." }
         require(s.theme in setOf("system", "light", "dark"))
+        require(s.reviewProvider in setOf("openai", "local")) { "Choose OpenAI or on-device reviews." }
     }
     fun progress(state: Snapshot, goal: Goal, date: LocalDate): Double = state.activities
         .filter { !it.undone && it.goalId == goal.id && inPeriod(goal, LocalDate.parse(it.day), date) }.sumOf { it.amount }
@@ -96,7 +97,7 @@ object JournalRules {
         }
         state.activities.forEach { require(it.goalId in goals && it.amount.isFinite() && it.amount >= 0); LocalDate.parse(it.day); require(it.sources.all(entries::containsKey)) }
         val reviewIds = state.reviews.map { it.id }.toSet()
-        state.reviews.forEach { LocalDate.parse(it.day); require(it.sourceIds.orEmpty().all(entries::containsKey)); require(it.captions.all { c -> state.attachments.any { it.id == c.attachmentId } }) }
+        state.reviews.forEach { require(it.provider in setOf("local", "openai")); LocalDate.parse(it.day); require(it.sourceIds.orEmpty().all(entries::containsKey)); require(it.captions.all { c -> state.attachments.any { it.id == c.attachmentId } }) }
         state.suggestions.forEach { require(it.reviewId in reviewIds && it.goalId in goals && it.sources.all(entries::containsKey)); require(it.amount.isFinite() && it.amount >= 0) }
         state.items.forEach { item ->
             require(item.kind in setOf("todo", "idea") && item.title.isNotBlank() && item.title.length <= 200 && item.details.length <= 4000)

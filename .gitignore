@@ -14,3 +14,5 @@
 /verification/
 /.kotlin/
 **/__pycache__/
+*.gguf
+ggml-*.bin
