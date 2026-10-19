@@ -1,5 +1,8 @@
 package dev.daybook.app
 import android.graphics.*
+import androidx.activity.compose.setContent
+import dev.daybook.app.ui.*
+import dev.daybook.app.capture.RecordingSession
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -17,9 +20,11 @@ class ScreenshotTour {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
     private fun shot(name: String) {
         compose.waitForIdle()
+        // Native dialog/window transitions run outside Compose's test clock.
+        Thread.sleep(450)
         val context = compose.activity
         val target = File(context.getExternalFilesDir("screenshots"), "$name.png").apply { parentFile!!.mkdirs() }
-        compose.onRoot().captureToImage().asAndroidBitmap().let { bitmap -> target.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) } }
+        InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot().let { bitmap -> target.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) } }
     }
     @Test fun captureSyntheticScreens() {
         Assume.assumeTrue(InstrumentationRegistry.getArguments().getString("screenshots") == "true")
@@ -64,6 +69,21 @@ class ScreenshotTour {
         shot("08-moments")
         compose.onNodeWithText("Goals").performClick(); shot("04-goals")
         compose.onNodeWithText("History").performClick(); shot("05-history")
+        compose.onNodeWithText("Calendar", substring = false).performClick(); shot("13-calendar")
+        compose.onNodeWithText("Stats", substring = false).performClick(); shot("14-stats")
+        val planning = Entry(id = "sample-plans", day = day, originalText = "I want to learn Italian. I need to book a dentist visit. Maybe I could try pottery.")
+        runBlocking { graph.repository.change { current ->
+            val next = current.copy(entries = current.entries + planning,
+                items = listOf(ListItem(kind = "todo", title = "Order groceries", details = "Vegetables, rice, and fruit"),
+                    ListItem(kind = "idea", title = "Try a new trail", details = "A slow Sunday walk somewhere new")))
+            PlannerRules.proposals(next, next.reviews.single(), listOf(
+                ProposedItem("goal", "Learn Italian", "Make a little room for a new language.", listOf(planning.id)),
+                ProposedItem("todo", "Book a dentist visit", "Call to arrange an appointment.", listOf(planning.id)),
+                ProposedItem("idea", "Try pottery", "A possible weekend class to explore.", listOf(planning.id))))
+        } }
+        compose.onNodeWithText("Lists", substring = false).performClick(); shot("15-todos")
+        compose.onNodeWithText("Ideas", substring = false).performClick(); shot("16-ideas")
+        compose.onNodeWithText("Suggestions", substring = true).performClick(); shot("17-suggestions")
         compose.onNodeWithText("Settings").performClick(); shot("06-settings")
         compose.onNodeWithText("Reminders & rhythm").performClick(); shot("09-rhythm")
         compose.onNodeWithText("All settings").performScrollTo().performClick()
@@ -73,5 +93,13 @@ class ScreenshotTour {
         runBlocking { graph.preferences.save(graph.preferences.read().copy(theme = "dark")) }
         compose.onNodeWithText("Today", substring = false).performClick()
         compose.waitUntil(10000) { graph.settings.value.theme == "dark" }; compose.waitForIdle(); shot("07-dark")
+        compose.runOnUiThread { compose.activity.setContent {
+            DaybookTheme(false) {
+                RecordingScreen(RecordingSession(elapsedMs = 42000, level = 0.45f, phase = "recording",
+                    transcript = "Made it to the gym this morning. I felt a little more focused afterwards.\n\nI’d like to spend some time learning Italian this week, and maybe try a pottery class on the weekend.",
+                    previewStatus = "Synthetic transcript for the interface preview."), true, true, {}, {}, {})
+            }
+        } }
+        shot("18-recording")
     }
 }

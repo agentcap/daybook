@@ -22,7 +22,7 @@ class RecordingService : Service() {
     private var task: Job? = null
     override fun onBind(intent: Intent?) = null
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == STOP) { requestedStop = true; return START_NOT_STICKY }
+        if (intent?.action == STOP) { requestedStop = true; if (task?.isActive != true) stopSelf(startId); return START_NOT_STICKY }
         if (task?.isActive == true) return START_NOT_STICKY
         val channel = NotificationChannel("recording", "Voice recording", NotificationManager.IMPORTANCE_LOW)
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
@@ -32,7 +32,7 @@ class RecordingService : Service() {
             .setContentTitle("Recording your thought").setContentText("Audio stays on this phone. Tap Stop when finished.")
             .setOngoing(true).setContentIntent(open).addAction(0, "Stop & save", stop).build()
         startForeground(50, notification)
-        requestedStop = false; lastError.value = null; active.value = true
+        requestedStop = false; lastError.value = null; session.value = RecordingSession(phase = "starting"); active.value = true
         task = scope.launch { record(intent?.getStringExtra("day") ?: java.time.LocalDate.now().toString()) }
         return START_NOT_STICKY
     }
@@ -42,6 +42,7 @@ class RecordingService : Service() {
         var entry: Entry? = null
         var attachment: Attachment? = null
         var wake: PowerManager.WakeLock? = null
+        var preview: RecordingPreview? = null
         try {
             graph.initialized.await()
             check(ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) { "Microphone permission is needed." }
@@ -51,6 +52,8 @@ class RecordingService : Service() {
             attachment = Attachment(entryId = entry.id, path = path, kind = "audio", bytes = 0)
             val savedEntry = entry; val savedAttachment = attachment
             graph.repository.change { it.copy(entries = it.entries + savedEntry, attachments = it.attachments + savedAttachment) }
+            session.value = RecordingSession(entryId = entry.id, phase = "recording")
+            preview = RecordingPreview(graph, entry.id, scope, session)
             val bufferSize = maxOf(8192, AudioRecord.getMinBufferSize(16000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT) * 2)
             audio = AudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION, 16000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, bufferSize)
             check(audio.state == AudioRecord.STATE_INITIALIZED) { "The microphone could not start." }
@@ -65,21 +68,29 @@ class RecordingService : Service() {
                     check(n >= 0) { "The microphone stopped unexpectedly." }
                     if (n == 0) continue
                     out.write(buffer, 0, n); bytes += n
+                    val level = preview.feed(buffer, n)
+                    session.value = session.value.copy(elapsedMs = bytes * 1000 / 32000, level = level)
                     if (bytes - checkpoint > 32000 * 5) { Wav.header(out, bytes); out.fd.sync(); checkpoint = bytes }
                 }
                 Wav.header(out, bytes); out.fd.sync()
             }
+            audio.stop(); audio.release(); audio = null
+            session.value = session.value.copy(phase = "saving", level = 0f)
+            preview.stop(); preview = null
             val id = entry.id
             graph.repository.change { s -> s.copy(entries = s.entries.map { if (it.id == id) it.copy(status = "pending") else it },
                 attachments = s.attachments.map { if (it.id == savedAttachment.id) it.copy(bytes = file.length()) else it }) }
             graph.transcriptions.enqueue(id)
+            session.value = session.value.copy(phase = "saved", previewStatus = "Saved. The full transcript is being refined on this phone.")
         } catch (e: Exception) {
             lastError.value = (e.message ?: "Recording could not start. Please try again.").take(500)
+            session.value = session.value.copy(phase = "error", previewStatus = lastError.value.orEmpty())
             val id = entry?.id
             if (id != null) graph.repository.change { s -> s.copy(entries = s.entries.map {
                 if (it.id == id) it.copy(status = "interrupted", error = (e.message ?: "Recording interrupted. Saved audio is preserved.").take(500)) else it
             }) }
         } finally {
+            withContext(NonCancellable) { preview?.stop() }
             try { audio?.stop() } catch (_: Exception) { }
             audio?.release()
             if (wake?.isHeld == true) wake.release()
@@ -90,6 +101,7 @@ class RecordingService : Service() {
     override fun onDestroy() { requestedStop = true; super.onDestroy() }
     companion object {
         const val STOP = "dev.daybook.STOP"
+        val session = MutableStateFlow(RecordingSession())
         val active = MutableStateFlow(false)
         val lastError = MutableStateFlow<String?>(null)
     }

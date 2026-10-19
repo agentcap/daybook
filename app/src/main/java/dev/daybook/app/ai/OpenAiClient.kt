@@ -21,7 +21,7 @@ class OpenAiClient(
             addProperty("type", "input_text")
             addProperty("text", gson.toJson(mapOf("date" to input.day, "entries" to input.entries.map {
                 mapOf("id" to it.id, "time" to java.time.Instant.ofEpochMilli(it.created).atZone(java.time.ZoneId.of(it.zone)).toString(), "text" to it.text, "kind" to it.kind)
-            }, "goals" to input.goals, "confirmedActivities" to input.confirmedActivities)))
+            }, "goals" to input.goals, "confirmedActivities" to input.confirmedActivities, "existingItems" to input.existingItems.map { mapOf("kind" to it.kind, "title" to it.title) })))
         })
         input.photos.forEach { photo ->
             content.add(JsonObject().apply { addProperty("type", "input_text"); addProperty("text", "Photo attachmentId=${photo.attachmentId}; source entryId=${photo.entryId}") })
@@ -69,7 +69,8 @@ class OpenAiClient(
                     }
                 }
             }
-            return ReviewProtocol.parse(text, input)
+            return try { ReviewProtocol.parse(text, input) }
+            catch (_: Exception) { throw CleanupFailure("OpenAI returned an invalid review or source references. Your originals are preserved. Try again.") }
         }
     }
 }

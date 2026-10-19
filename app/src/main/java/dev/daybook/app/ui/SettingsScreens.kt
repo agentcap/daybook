@@ -189,7 +189,7 @@ fun SettingsScreen(settings: Settings, hasKey: Boolean, modelReady: Boolean, mod
                     SectionCard {
                         Icon(Icons.Outlined.GraphicEq, null, Modifier.size(36.dp), tint = MaterialTheme.colorScheme.primary)
                         Text(if (modelReady) "Ready for airplane mode" else "Take your voice offline", style = MaterialTheme.typography.titleLarge)
-                        Text("Download English speech once (141 MB). Voice notes are then transcribed on your phone, even without internet. Your original audio is always kept.")
+                        Text("Download English speech once (141 MB). Voice notes are then transcribed on your phone, even without internet. Your original audio is always kept. Live draft text appears in short batches during recording and is refined after you stop.")
                         when (modelWork?.state) {
                             WorkInfo.State.RUNNING -> {
                                 LinearProgressIndicator(progress = { modelWork.progress.getInt("percent", 0) / 100f }, modifier = Modifier.fillMaxWidth())
@@ -207,7 +207,7 @@ fun SettingsScreen(settings: Settings, hasKey: Boolean, modelReady: Boolean, mod
                 }
                 "ai" -> {
                     SectionCard {
-                        ToggleRow("Allow OpenAI reviews", "Sends this day’s text and attached photos. Audio stays on your phone.", settings.cloudConsent, { save(settings.copy(cloudConsent = it)) }, !saving)
+                        ToggleRow("Allow OpenAI reviews", "Sends this day’s text and attached photos, with existing goals and list titles for context. Audio stays on your phone.", settings.cloudConsent, { save(settings.copy(cloudConsent = it)) }, !saving)
                         ToggleRow("Automatic nightly cleanup", "Uses your saved key and internet connection.", settings.autoCleanup, { save(settings.copy(autoCleanup = it)) }, !saving)
                         TimeSetting("Nightly review time", settings.cleanupTime) { save(settings.copy(cleanupTime = it)) }
                         Text("Originals are preserved. Review goal progress and calorie estimates before they count.", style = MaterialTheme.typography.bodySmall)

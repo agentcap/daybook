@@ -23,7 +23,7 @@ import java.time.format.DateTimeFormatter
 fun TodayScreen(state: Snapshot, day: String, recording: Boolean, work: WorkInfo?, modifier: Modifier,
     onDate: (String) -> Unit, onWrite: () -> Unit, onVoice: () -> Unit, onPhoto: () -> Unit,
     onStop: () -> Unit, onEntry: (String) -> Unit, onCleanup: () -> Unit, onSuggestion: (Suggestion) -> Unit,
-    onReject: (String) -> Unit, onUndo: (String) -> Unit, onLog: (String) -> Unit, onGoals: () -> Unit) {
+    onReject: (String) -> Unit, onUndo: (String) -> Unit, onLog: (String) -> Unit, onGoals: () -> Unit, onLists: () -> Unit) {
     val date = LocalDate.parse(day)
     val entries = state.entries.filter { it.day == day }.sortedByDescending { it.created }
     val reviews = state.reviews.filter { it.day == day }.sortedByDescending { it.created }
@@ -57,7 +57,10 @@ fun TodayScreen(state: Snapshot, day: String, recording: Boolean, work: WorkInfo
                     OutlinedButton(onClick = onWrite, Modifier.weight(1f).height(48.dp)) { Icon(Icons.Outlined.EditNote, null); Spacer(Modifier.width(6.dp)); Text("Write") }
                     OutlinedButton(onClick = onPhoto, Modifier.weight(1f).height(48.dp)) { Icon(Icons.Outlined.AddAPhoto, null); Spacer(Modifier.width(6.dp)); Text("Photo") }
                 }
-                if (recording) Text("Recording continues with the screen locked. Stop from the notification or here.", style = MaterialTheme.typography.bodySmall)
+                if (recording) {
+                    TextButton(onClick = onVoice) { Text("View live transcript") }
+                    Text("Recording continues with the screen locked. Stop from the notification or here.", style = MaterialTheme.typography.bodySmall)
+                }
             }
         }
         item {
@@ -124,6 +127,8 @@ fun TodayScreen(state: Snapshot, day: String, recording: Boolean, work: WorkInfo
                 Button(onClick = onCleanup, enabled = entries.isNotEmpty() && work?.state !in setOf(WorkInfo.State.RUNNING, WorkInfo.State.ENQUEUED, WorkInfo.State.BLOCKED)) {
                     Text(if (latest == null) "Clean up now" else "Refresh review")
                 }
+                val discoveries = state.proposals.count { it.day == day && it.status == "pending" }
+                if (discoveries > 0) TextButton(onClick = onLists) { Text("$discoveries new goal / to-do / idea suggestions") }
                 if (reviews.size > 1) {
                     TextButton(onClick = { oldReviews = !oldReviews }) { Text(if (oldReviews) "Hide previous reviews" else "${reviews.size - 1} previous reviews") }
                     if (oldReviews) reviews.drop(1).forEach { review ->
@@ -218,13 +223,14 @@ fun GoalsScreen(state: Snapshot, day: String, modifier: Modifier, onNew: () -> U
         if (goals.isEmpty()) item { SectionCard { Text(if (archived) "No archived goals." else "What would you like to make time for?", style = MaterialTheme.typography.titleMedium); if (!archived) Text("Try gym, a home-cooked meal, or a few minutes learning something new.") } }
         items(goals, key = { it.id }) { goal ->
             val progress = JournalRules.progress(state, goal, LocalDate.parse(day))
-            SectionCard {
+            val animatedProgress by androidx.compose.animation.core.animateFloatAsState((progress / goal.target).toFloat().coerceIn(0f, 1f), label = "goal progress")
+            SectionCard(Modifier.animateItem()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(goal.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                     if (progress >= goal.target) Icon(Icons.Outlined.CheckCircle, "Target reached", tint = MaterialTheme.colorScheme.primary)
                 }
                 Text("${goal.period.replaceFirstChar { it.uppercase() }} · ${amountText(progress)} / ${amountText(goal.target)} ${goal.unit}")
-                LinearProgressIndicator(progress = { (progress / goal.target).toFloat().coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
+                LinearProgressIndicator(progress = { animatedProgress }, modifier = Modifier.fillMaxWidth())
                 Row {
                     if (!archived) Button(onClick = { onLog(goal.id) }) { Text("Log activity") }
                     TextButton(onClick = { onArchive(goal.id, !archived) }) { Text(if (archived) "Restore goal" else "Archive") }
@@ -235,8 +241,9 @@ fun GoalsScreen(state: Snapshot, day: String, modifier: Modifier, onNew: () -> U
 }
 
 @Composable
-fun HistoryScreen(state: Snapshot, modifier: Modifier, onDay: (String) -> Unit) {
+fun HistoryScreen(state: Snapshot, modifier: Modifier, onEntry: (String) -> Unit = {}, today: LocalDate = LocalDate.now(), onDay: (String) -> Unit) {
     var query by remember { mutableStateOf("") }
+    var view by remember { mutableStateOf("Journal") }
     val days = (state.entries.map { it.day } + state.activities.map { it.day } + state.reviews.map { it.day }).distinct().sortedDescending().filter { day ->
         if (query.isBlank()) true else {
             val entries = state.entries.filter { it.day == day }
@@ -250,13 +257,19 @@ fun HistoryScreen(state: Snapshot, modifier: Modifier, onDay: (String) -> Unit) 
     LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item {
             PageTitle("Your story", "Look back.", "Find a thought, a meal, or a moment.")
-            Spacer(Modifier.height(18.dp))
-            OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth(), label = { Text("Search your journal") },
+            StreakSummary(state, today) { view = "Stats" }
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf("Journal", "Calendar", "Stats").forEach { label -> FilterChip(view == label, { view = label }, label = { Text(label) }) }
+            }
+            Spacer(Modifier.height(12.dp))
+            if (view == "Journal") OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth(), label = { Text("Search your journal") },
                 leadingIcon = { Icon(Icons.Outlined.Search, null) }, singleLine = true, shape = RoundedCornerShape(16.dp))
-            Text("Search runs entirely on your phone.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
+            if (view == "Journal") Text("Search runs entirely on your phone.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
         }
-        if (days.isEmpty()) item { Text(if (query.isEmpty()) "Your saved days will appear here." else "No matching days.") }
-        items(days, key = { it }) { day ->
+        if (view == "Stats") item { JournalDashboard(state, today) }
+        if (view == "Calendar") item { JournalCalendar(state, today, onDay, onEntry) }
+        if (view == "Journal" && days.isEmpty()) item { Text(if (query.isEmpty()) "Your saved days will appear here." else "No matching days.") }
+        if (view == "Journal") items(days, key = { it }) { day ->
             Card(onClick = { onDay(day) }, shape = RoundedCornerShape(28.dp), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(LocalDate.parse(day).format(DateTimeFormatter.ofPattern("EEEE, MMM d, yyyy")), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)

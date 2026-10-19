@@ -1,6 +1,33 @@
 # Verification
 
-Current release: 0.2.0. The initial release results are retained below for context.
+Current release: 0.3.0. Earlier release results are retained below for context.
+
+## 0.3.0 update verification
+
+Completed on 2026-10-18 in the isolated Android 16 x86-64 emulator:
+
+| Check | Result |
+| --- | --- |
+| JVM rules, archive, mocked HTTP, and authentication lifecycle | 31 tests passed (24 core, 7 app) |
+| Regular Android journal, planner, history, backup, recording, Settings, and widget checks | 17 passed (runner reports 22 including 5 skipped opt-in cases) |
+| Real base.en model download/checksum and offline inference | All 3 opt-in speech checks passed, including full WAV transcription and reusable live-window inference in airplane mode |
+| Recording interface | Timer/live status, minimize/reopen without a duplicate recording, stop/save, and retaining draft text after transcription failure passed |
+| New goals, to-dos, and ideas | Manual list management; edited approval of all three types; no automatic goal progress; deduplication; stale evidence; undo; repeat intentions after a completed task passed |
+| History | Calendar date navigation, source-note access, search, streak calculations, and statistics passed |
+| Encrypted backup | Round trip with list items, proposal source fingerprints, audio, and photos passed; incorrect password and unsafe paths rejected |
+| Visual review | 17 refreshed app screenshots inspected, including recording, calendar, stats, Lists, and light/dark themes; earlier actual home-screen widget screenshot retained |
+| Android lint | 0 errors, 29 warnings |
+| Signed release | Non-debuggable, ARM64 and x86-64, same signing certificate as 0.2.0; 16 KiB ZIP and native ELF alignment verified |
+| Update installation | Installed over the existing personal emulator package and cold-launched successfully |
+
+APK: `releases/daybook-0.3.0.apk` (56,511,253 bytes).
+
+SHA-256: `697fdb65398352b20c660b3c067e560b64700d072973e8f3b7118ca6dba322e3`.
+
+Live previews use three-second initial windows and six-second segments; their arrival depends on device performance. The actual native speech checks completed in 41.303 seconds in total with the upstream JFK fixture. That is not a measurement of physical microphone accuracy or Samsung latency. The recording screenshot uses synthetic transcript text, and the screenshot review/proposals use fixtures rather than a live OpenAI response.
+
+Automatic authentication and direct widget behavior from 0.2.0 remain in place. The regular direct-record intent and configuration-recreation checks passed again. Physical Samsung fingerprint hardware, One UI launcher behavior, battery restrictions, and an actual paid OpenAI request still require user device testing.
+
 
 ## 0.2.0 update verification
 
@@ -31,7 +58,7 @@ To repeat the opt-in authentication test, configure a six-digit test PIN on a **
 
 The app has not been tested on a physical Galaxy S26 Ultra. Before relying on it daily:
 
-1. Download the English model, enable airplane mode, and record several English notes with names, numbers, and background noise. Play back the preserved audio and compare the transcript.
+1. Download the English model, enable airplane mode, and record several English notes with names, numbers, and background noise. Play back the preserved audio and compare the live draft and final transcript. Check how quickly previews appear and whether extended recording affects heat or battery life.
 2. Start recording, lock the screen, and stop using the notification. Confirm capture and transcription survive normal background use.
 3. Check reminders during waking hours, snooze, quiet hours, a reboot, and Samsung battery-saving/sleeping-app configurations. Approximate scheduling can be delayed by the OS.
 4. Enter your own OpenAI API key, enable cloud reviews, attach a food photo, and run a daily review. Confirm source preservation and review a calorie suggestion before applying it.
@@ -71,7 +98,7 @@ adb -e shell am instrument -w -e realSpeech true \
   dev.daybook.app.verification.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
-These checks download the actual 141 MB model if absent, verify its hash, disable emulator connectivity, transcribe the upstream JFK fixture locally, and restore connectivity. They are restricted to an emulator because they change airplane mode.
+These checks download the actual 141 MB model if absent, verify its hash, disable emulator connectivity, transcribe the upstream JFK fixture locally using both full-recording and live-window paths, and restore connectivity. They are restricted to an emulator because they change airplane mode.
 
 ## Initial 0.1.0 result record
 

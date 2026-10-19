@@ -3,6 +3,7 @@ import android.content.Context
 import androidx.work.*
 import dev.daybook.app.daybook
 import dev.daybook.app.data.MediaStore
+import dev.daybook.core.Revision
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
@@ -14,6 +15,17 @@ interface SpeechTranscriber { suspend fun transcribe(model: File, recording: Fil
 object WhisperEngine : SpeechTranscriber {
     private val lock = Mutex()
     init { System.loadLibrary("daybook_speech") }
+    private external fun openPreviewNative(model: String): Long
+    private external fun previewNative(handle: Long, samples: FloatArray): String
+    private external fun closePreviewNative(handle: Long)
+    suspend fun openPreview(model: File): PreviewSession = lock.withLock { PreviewSession(openPreviewNative(model.absolutePath)) }
+    class PreviewSession(private var handle: Long) {
+        private val sessionLock = Mutex()
+        suspend fun transcribe(samples: FloatArray): String = lock.withLock { sessionLock.withLock {
+            check(handle != 0L); previewNative(handle, samples).trim()
+        } }
+        suspend fun close() = sessionLock.withLock { if (handle != 0L) { closePreviewNative(handle); handle = 0 } }
+    }
     private external fun transcribeNative(model: String, recording: String): String
     override suspend fun transcribe(model: File, recording: File): String = lock.withLock {
         withContext(Dispatchers.IO) { transcribeNative(model.absolutePath, recording.absolutePath).trim() }
@@ -43,6 +55,7 @@ class TranscriptionWorker(context: Context, params: WorkerParameters) : Coroutin
             check(text.isNotBlank()) { "No speech was detected. Replay your audio, edit the note, or retry transcription." }
             if (isStopped) return@withContext Result.failure()
             graph.repository.change { s -> s.copy(
+                revisions = s.revisions + s.entries.filter { it.id == id && it.status != "ready" && it.text.isNotBlank() && it.text != text }.map { Revision(entryId = id, text = it.text) },
                 entries = s.entries.map { if (it.id == id && it.status != "ready") it.copy(originalText = text, text = text, status = "ready", error = "") else it },
                 attachments = s.attachments.map { if (it.id == attachment.id) it.copy(bytes = file.length(), digest = MediaStore.digest(file)) else it }) }
             Result.success()

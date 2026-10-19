@@ -76,15 +76,16 @@ fun EntryDialog(entry: Entry, state: Snapshot, graph: AppGraph, onDismiss: () ->
         dismissButton = { TextButton(onClick = { delete = false }) { Text("Keep note") } })
 }
 
-@Composable fun GoalDialog(onDismiss: () -> Unit, onSave: (Goal) -> Unit) {
-    var title by remember { mutableStateOf("") }
-    var period by remember { mutableStateOf("daily") }
-    var checklist by remember { mutableStateOf(true) }
-    var target by remember { mutableStateOf("1") }
-    var unit by remember { mutableStateOf("times") }
+@Composable fun GoalDialog(onDismiss: () -> Unit, initial: Goal? = null, evidence: String = "", onSave: (Goal) -> Unit) {
+    var title by remember { mutableStateOf(initial?.title.orEmpty()) }
+    var period by remember { mutableStateOf(initial?.period ?: "daily") }
+    var checklist by remember { mutableStateOf(initial?.checklist ?: true) }
+    var target by remember { mutableStateOf(initial?.target?.let(::amountText) ?: "1") }
+    var unit by remember { mutableStateOf(initial?.unit ?: "times") }
     var error by remember { mutableStateOf("") }
     AlertDialog(onDismissRequest = onDismiss, title = { Text("A goal for your life") }, text = {
         Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (evidence.isNotBlank()) { Text("Suggested from your notes", style = MaterialTheme.typography.labelLarge); Text(evidence, style = MaterialTheme.typography.bodySmall); Text("Creating this goal does not log progress or completion.", style = MaterialTheme.typography.bodySmall) }
             Text("Start from a template", style = MaterialTheme.typography.labelLarge)
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("Gym", "Cooking", "Laundry", "Blog", "Learning", "Calories").forEach { template ->

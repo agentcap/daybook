@@ -68,3 +68,46 @@ Java_dev_daybook_app_capture_WhisperEngine_transcribeNative(JNIEnv *env, jobject
         return nullptr;
     }
 }
+
+
+static jstring utf8(JNIEnv *env, const std::string &text) {
+    jbyteArray bytes = env->NewByteArray(static_cast<jsize>(text.size()));
+    env->SetByteArrayRegion(bytes, 0, static_cast<jsize>(text.size()), reinterpret_cast<const jbyte*>(text.data()));
+    jclass cls = env->FindClass("java/lang/String");
+    return static_cast<jstring>(env->NewObject(cls, env->GetMethodID(cls, "<init>", "([BLjava/lang/String;)V"), bytes, env->NewStringUTF("UTF-8")));
+}
+extern "C" JNIEXPORT jlong JNICALL
+Java_dev_daybook_app_capture_WhisperEngine_openPreviewNative(JNIEnv *env, jobject, jstring model) {
+    try {
+    const char *path = env->GetStringUTFChars(model, nullptr);
+    if (!path) return 0;
+    std::string value(path); env->ReleaseStringUTFChars(model, path);
+    auto params = whisper_context_default_params(); params.use_gpu = false;
+    auto *ctx = whisper_init_from_file_with_params(value.c_str(), params);
+    if (!ctx) { fail(env, "The live speech model could not load."); return 0; }
+    return reinterpret_cast<jlong>(ctx);
+    } catch (const std::exception &) { fail(env, "The live speech model could not load. Audio is preserved."); return 0; }
+}
+extern "C" JNIEXPORT jstring JNICALL
+Java_dev_daybook_app_capture_WhisperEngine_previewNative(JNIEnv *env, jobject, jlong handle, jfloatArray audio) {
+    auto *ctx = reinterpret_cast<whisper_context*>(handle);
+    const auto length = env->GetArrayLength(audio);
+    if (!ctx || length <= 0 || length > 16000 * 16) { fail(env, "Invalid live audio window."); return nullptr; }
+    try {
+        std::vector<float> samples(length);
+        env->GetFloatArrayRegion(audio, 0, length, samples.data());
+        double energy = 0; for (float sample : samples) energy += sample * sample;
+        if (energy / length < 0.000001) return utf8(env, "");
+        auto p = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
+        p.n_threads = std::max(1u, std::min(3u, std::thread::hardware_concurrency()));
+        p.language = "en"; p.translate = false; p.no_context = true; p.no_timestamps = true;
+        p.suppress_blank = true; p.suppress_nst = true;
+        p.print_progress = false; p.print_realtime = false; p.print_timestamps = false; p.print_special = false;
+        if (whisper_full(ctx, p, samples.data(), length) != 0) { fail(env, "Live transcription failed."); return nullptr; }
+        std::string text;
+        for (int i = 0; i < whisper_full_n_segments(ctx); ++i) { const char *segment = whisper_full_get_segment_text(ctx, i); if (segment) text += segment; }
+        return utf8(env, text);
+    } catch (const std::exception &) { fail(env, "Live transcription failed. Audio is preserved."); return nullptr; }
+}
+extern "C" JNIEXPORT void JNICALL
+Java_dev_daybook_app_capture_WhisperEngine_closePreviewNative(JNIEnv *, jobject, jlong handle) { if (handle) whisper_free(reinterpret_cast<whisper_context*>(handle)); }

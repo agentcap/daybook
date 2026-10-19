@@ -52,4 +52,29 @@ class RealSpeechTest {
                 .writeText("Whisper base.en; airplane mode; JFK fixture; ${System.currentTimeMillis() - started} ms\n$text\n")
         } finally { file.delete(); shell("cmd connectivity airplane-mode disable"); shell("svc wifi enable"); shell("svc data enable") }
     }
+    @Test fun c_realLivePreviewReusesModelAndReplacesPartialTextOffline() = runBlocking {
+        val graph = context.daybook; graph.initialized.await()
+        assertTrue(graph.model.ready())
+        require(Build.MODEL.contains("sdk"))
+        val bytes = instrumentation.context.assets.open("jfk.wav").use { it.readBytes() }
+        val count = (bytes.size - 44) / 2
+        val pcm = FloatArray(count) { i -> ((bytes[44 + i * 2].toInt() and 255) or (bytes[45 + i * 2].toInt() shl 8)).toShort() / 32768f }
+        try {
+            shell("cmd connectivity airplane-mode enable"); shell("svc wifi disable"); shell("svc data disable")
+            withContext(Dispatchers.IO) {
+                val started = System.currentTimeMillis()
+                val engine = WhisperEngine.openPreview(graph.model.file)
+                try {
+                    val live = LiveTranscript()
+                    live.update(0, engine.transcribe(pcm.copyOfRange(0, minOf(count, 16000 * 3))))
+                    val first = live.update(0, engine.transcribe(pcm.copyOfRange(0, minOf(count, 16000 * 6))))
+                    val full = if (count > 16000 * 6) live.update(1, engine.transcribe(pcm.copyOfRange(16000 * 6, minOf(count, 16000 * 12)))) else first
+                    assertTrue("Real on-device preview should recognize spoken words.", full.contains("country", ignoreCase = true))
+                    File(context.getExternalFilesDir("verification"), "live-speech-result.txt").apply { parentFile!!.mkdirs() }
+                        .writeText("Actual base.en live windows; airplane mode; ${System.currentTimeMillis() - started} ms\n$full\n")
+                } finally { engine.close() }
+            }
+        } finally { shell("cmd connectivity airplane-mode disable"); shell("svc wifi enable"); shell("svc data enable") }
+    }
+
 }

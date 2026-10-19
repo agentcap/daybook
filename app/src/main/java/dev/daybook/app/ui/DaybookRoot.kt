@@ -8,6 +8,9 @@ import android.view.WindowManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.biometric.*
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,6 +28,7 @@ import androidx.core.content.FileProvider
 import androidx.work.*
 import dev.daybook.app.*
 import dev.daybook.app.capture.RecordingService
+import dev.daybook.app.capture.RecordingSession
 import dev.daybook.core.*
 import kotlinx.coroutines.*
 import java.io.File
@@ -70,7 +74,11 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
                 while (true) { delay(60_000); val next = LocalDate.now(); if (day == today.toString()) day = next.toString(); today = next }
             }
             var write by remember { mutableStateOf(false) }
-            var voice by remember { mutableStateOf(false) }
+            var recordingSheet by rememberSaveable { mutableStateOf(false) }
+            var listKind by remember { mutableStateOf<String?>(null) }
+            var editingItem by remember { mutableStateOf<ListItem?>(null) }
+            var selectedProposal by remember { mutableStateOf<Proposal?>(null) }
+            var initiallySuggestions by remember { mutableStateOf(false) }
             var photo by remember { mutableStateOf(false) }
             var selectedEntry by remember { mutableStateOf<String?>(null) }
             var newGoal by remember { mutableStateOf(false) }
@@ -80,15 +88,25 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
             var password by remember { mutableStateOf<CharArray?>(null) }
             var busy by remember { mutableStateOf<String?>(null) }
             val active by RecordingService.active.collectAsState()
+            val recordingSession by RecordingService.session.collectAsState()
+            LaunchedEffect(active) { if (active) recordingSheet = true }
             val recordingError by RecordingService.lastError.collectAsState()
             LaunchedEffect(recordingError) { recordingError?.let { snacks.showSnackbar(it); RecordingService.lastError.value = null } }
             val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
-            var recordingDay by remember { mutableStateOf(day) }
+            var recordingDay by rememberSaveable { mutableStateOf(day) }
             val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { allowed ->
                 if (allowed) {
-                    try { ContextCompat.startForegroundService(activity, Intent(activity, RecordingService::class.java).putExtra("day", recordingDay)); voice = false }
-                    catch (_: Exception) { scope.launch { snacks.showSnackbar("Recording could not start. Keep Daybook open and try again.") } }
-                } else scope.launch { snacks.showSnackbar("Microphone permission is needed for voice notes. You can still write and add photos.") }
+                    try { ContextCompat.startForegroundService(activity, Intent(activity, RecordingService::class.java).putExtra("day", recordingDay)) }
+                    catch (_: Exception) { RecordingService.session.value = RecordingSession(phase = "error", previewStatus = "Recording could not start. Keep Daybook open and try again.") }
+                } else RecordingService.session.value = RecordingSession(phase = "error", previewStatus = "Microphone permission is needed. Allow it in Android app settings, then try again.")
+            }
+            fun startRecording() {
+                recordingSheet = true
+                if (!active) {
+                    recordingDay = day
+                    RecordingService.session.value = RecordingSession(phase = "starting")
+                    micPermission.launch(Manifest.permission.RECORD_AUDIO)
+                }
             }
             val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(20)) { uris ->
                 if (uris.isNotEmpty()) run { busy = "Saving your photos…"; try { uris.forEach { withContext(Dispatchers.IO) { graph.media.importPhoto(it, day, graph.repository) } } } finally { busy = null } }
@@ -128,13 +146,7 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
                 if (settings.onboarded && (!settings.biometric || unlocked) && capture.isNotEmpty() && lifecycleState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) {
                     tab = 0; day = LocalDate.now().toString()
                     when (capture) {
-                        "record" -> {
-                            if (!active) {
-                                recordingDay = day
-                                micPermission.launch(Manifest.permission.RECORD_AUDIO)
-                            }
-                        }
-                        "voice" -> voice = true
+                        "record", "voice" -> startRecording()
                         "write" -> write = true
                         "photo" -> photo = true
                     }
@@ -158,25 +170,34 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
                 Surface(Modifier.navigationBarsPadding().padding(horizontal = 18.dp, vertical = 8.dp).fillMaxWidth(),
                     shape = RoundedCornerShape(36.dp), color = colors.surface.copy(alpha = 0.97f),
                     shadowElevation = 8.dp, border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.6f))) {
-                NavigationBar(containerColor = Color.Transparent, windowInsets = WindowInsets(0, 0, 0, 0), modifier = Modifier.height(74.dp)) {
-                    val icons = listOf(Icons.Outlined.Today, Icons.Outlined.Flag, Icons.Outlined.History, Icons.Outlined.Settings)
-                    listOf("Today", "Goals", "History", "Settings").forEachIndexed { i, title ->
+                NavigationBar(containerColor = Color.Transparent, windowInsets = WindowInsets(0, 0, 0, 0), modifier = Modifier.height(66.dp)) {
+                    val destinations = listOf(Triple(0, "Today", Icons.Outlined.Today), Triple(1, "Goals", Icons.Outlined.Flag),
+                        Triple(4, "Lists", Icons.Outlined.Checklist), Triple(2, "History", Icons.Outlined.History), Triple(3, "Settings", Icons.Outlined.Settings))
+                    destinations.forEach { (i, title, icon) ->
                         NavigationBarItem(selected = tab == i, onClick = { tab = i; if (i == 0) day = LocalDate.now().toString() },
-                            icon = { Icon(icons[i], title) }, label = { Text(title) })
+                            icon = { Icon(icon, title, Modifier.size(22.dp)) }, label = { Text(title, style = MaterialTheme.typography.labelMedium) })
                     }
                 }
                 }
             }) { padding ->
-                when (tab) {
+                AnimatedContent(targetState = tab, modifier = Modifier.fillMaxSize(), transitionSpec = {
+                    (fadeIn(tween(180)) + slideInHorizontally(tween(180)) { it / 24 }) togetherWith fadeOut(tween(120))
+                }, label = "navigation transition") { destination ->
+                when (destination) {
                     0 -> TodayScreen(state, day, active, cleanupInfo, Modifier.padding(padding),
-                        onDate = { day = it }, onWrite = { write = true }, onVoice = { voice = true }, onPhoto = { photo = true },
+                        onDate = { day = it }, onWrite = { write = true }, onVoice = ::startRecording, onPhoto = { photo = true },
                         onStop = { activity.startService(Intent(activity, RecordingService::class.java).setAction(RecordingService.STOP)) },
                         onEntry = { selectedEntry = it }, onCleanup = { graph.cleanup.enqueue(day, force = true) },
                         onSuggestion = { selectedSuggestion = it }, onReject = { run { graph.repository.reject(it) } },
-                        onUndo = { run { graph.repository.undo(it) } }, onLog = { logGoal = it }, onGoals = { tab = 1 })
+                        onUndo = { run { graph.repository.undo(it) } }, onLog = { logGoal = it }, onGoals = { tab = 1 }, onLists = { initiallySuggestions = true; tab = 4 })
                     1 -> GoalsScreen(state, day, Modifier.padding(padding), onNew = { newGoal = true }, onLog = { logGoal = it },
                         onArchive = { id, archived -> run { graph.repository.change { s -> s.copy(goals = s.goals.map { if (it.id == id) it.copy(archived = archived) else it }) } } })
-                    2 -> HistoryScreen(state, Modifier.padding(padding)) { selected -> day = selected; tab = 0 }
+                    2 -> HistoryScreen(state, Modifier.padding(padding), onEntry = { selectedEntry = it }, today = today) { selected -> day = selected; tab = 0 }
+                    4 -> ListsScreen(state, Modifier.padding(padding), initiallySuggestions,
+                        onNew = { listKind = it; editingItem = null }, onEdit = { editingItem = it; listKind = it.kind },
+                        onUpdate = { item -> run { graph.repository.saveItem(item) } },
+                        onReview = { selectedProposal = it }, onReject = { run { graph.repository.rejectProposal(it) } },
+                        onUndo = { run { graph.repository.undoProposal(it) } }, onEntry = { selectedEntry = it })
                     3 -> {
                         var hasKey by remember { mutableStateOf(graph.keys.hasKey()) }
                         SettingsScreen(settings, hasKey, modelReady, modelInfo, graph.media.usage(), graph.model.file.length(),
@@ -197,12 +218,19 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
                     }
                 }
             }
+            }
             if (write) WriteDialog(onDismiss = { write = false }) { text -> run { graph.repository.addText(day, text); write = false } }
-            if (voice) AlertDialog(onDismissRequest = { voice = false }, title = { Text("Capture a thought") },
-                text = { Text(if (active) "You are already recording. Stop from Today or the recording notification."
-                    else "Speak naturally. Your original audio is kept here and transcribed on this phone. Recording continues with the screen locked, up to 30 minutes.${if (!graph.model.ready()) "\n\nDownload the English speech model in Settings to transcribe saved recordings." else ""}") },
-                confirmButton = { Button(enabled = !active, onClick = { recordingDay = day; micPermission.launch(Manifest.permission.RECORD_AUDIO) }) { Text("Start recording") } },
-                dismissButton = { TextButton(onClick = { voice = false }) { Text("Cancel") } })
+            if (recordingSheet) {
+                val finalEntry = state.entries.find { it.id == recordingSession.entryId }
+                val display = when {
+                    finalEntry?.status == "ready" -> recordingSession.copy(transcript = finalEntry.text, previewStatus = "Final transcript ready. Original audio is preserved.")
+                    !active && finalEntry?.status == "error" -> recordingSession.copy(previewStatus = "Audio saved. ${finalEntry.error}")
+                    else -> recordingSession
+                }
+                RecordingScreen(display, active, modelReady, onStart = ::startRecording,
+                    onStop = { activity.startService(Intent(activity, RecordingService::class.java).setAction(RecordingService.STOP)) },
+                    onDismiss = { recordingSheet = false })
+            }
             if (photo) AlertDialog(onDismissRequest = { photo = false }, title = { Text("Add a photo") },
                 text = { Text("Attach a meal, a place, or something you want to remember. Attached photos are included when you clean up this day with OpenAI.") },
                 confirmButton = { Button(onClick = {
@@ -220,6 +248,23 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
                     onDelete = { run { graph.deleteEntry(id); selectedEntry = null } },
                     onRetry = { graph.transcriptions.enqueue(id) })
             } }
+            listKind?.let { kind ->
+                ListItemDialog(kind, initial = editingItem, onDismiss = { listKind = null; editingItem = null }) { title, details ->
+                    val item = editingItem?.copy(title = title, details = details) ?: ListItem(kind = kind, title = title, details = details)
+                    run { graph.repository.saveItem(item); listKind = null; editingItem = null }
+                }
+            }
+            selectedProposal?.let { p ->
+                val evidence = p.item.sources.mapNotNull { id -> state.entries.find { it.id == id }?.text }.joinToString("\n\n")
+                if (p.item.kind == "goal") {
+                    val initial = remember(p.id) { Goal(title = p.item.title, period = p.item.period, target = p.item.target, unit = p.item.unit, checklist = p.item.checklist) }
+                    GoalDialog(onDismiss = { selectedProposal = null }, initial = initial, evidence = evidence) { goal ->
+                        run { graph.repository.approveProposal(p.id, goal.title, p.item.details, goal); selectedProposal = null }
+                    }
+                } else ListItemDialog(p.item.kind, proposal = p, evidence = evidence, onDismiss = { selectedProposal = null }) { title, details ->
+                    run { graph.repository.approveProposal(p.id, title, details); selectedProposal = null }
+                }
+            }
             if (newGoal) GoalDialog(onDismiss = { newGoal = false }) { goal -> run { graph.repository.addGoal(goal); newGoal = false } }
             logGoal?.let { id -> state.goals.firstOrNull { it.id == id }?.let { goal ->
                 ActivityDialog(goal, day, onDismiss = { logGoal = null }) { amount, note ->
@@ -265,8 +310,8 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
     if (subtitle.isNotEmpty()) Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 @Composable fun SectionCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
-    Card(modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp), content = content)
+    Card(modifier.fillMaxWidth().animateContentSize(), shape = RoundedCornerShape(24.dp), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = content)
     }
 }
 fun amountText(value: Double): String = if (value == value.toLong().toDouble()) value.toLong().toString() else "%.1f".format(java.util.Locale.US, value)

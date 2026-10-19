@@ -6,7 +6,7 @@ class ReviewProtocolTest {
     private val entry = Entry(id = "e1", day = "2026-10-18", originalText = "Ate lunch.")
     private val goal = Goal(id = "g1", title = "Calories", target = 3000.0, unit = "kcal", checklist = false)
     private val input = ReviewInput(entry.day, listOf(entry), listOf(goal), listOf(ReviewPhoto("p1", entry.id, "unused")))
-    private val valid = """{"journal":"I ate lunch.","summary":"Lunch.","captions":[{"attachmentId":"p1","description":"Rice and vegetables."}],"suggestions":[{"goalId":"g1","amount":600,"note":"Estimated portion","sources":["e1"],"estimated":true}]}"""
+    private val valid = """{"journal":"I ate lunch.","summary":"Lunch.","captions":[{"attachmentId":"p1","description":"Rice and vegetables."}],"suggestions":[{"goalId":"g1","amount":600,"note":"Estimated portion","sources":["e1"],"estimated":true}],"discoveries":[]}"""
     @Test fun photoEstimatesRemainSuggestions() {
         val draft = ReviewProtocol.parse(valid, input)
         assertTrue(draft.suggestions.single().estimated)

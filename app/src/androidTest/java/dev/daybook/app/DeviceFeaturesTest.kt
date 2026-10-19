@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.core.content.ContextCompat
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -81,4 +82,43 @@ class DeviceFeaturesTest {
             InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand("wm dismiss-keyguard").close()
         }
     }
+    @Test fun recordingViewShowsLiveStatusAndCanRunInBackground() = runBlocking {
+        val activity = compose.activity; val graph = activity.daybook
+        compose.onNodeWithText("Record a thought").performClick()
+        try {
+            compose.waitUntil(10000) { RecordingService.active.value && RecordingService.session.value.elapsedMs >= 1000 }
+            compose.onNodeWithText("LIVE TRANSCRIPT").assertIsDisplayed()
+            compose.onNodeWithText("Recording your day").assertIsDisplayed()
+            val id = RecordingService.session.value.entryId
+            compose.onNodeWithContentDescription("Keep recording in background").performClick()
+            compose.onNodeWithText("History", substring = false).performClick()
+            assertTrue(RecordingService.active.value)
+            compose.onNodeWithText("Today", substring = false).performClick()
+            compose.onNodeWithText("View live transcript").performScrollTo().performClick()
+            assertEquals(id, RecordingService.session.value.entryId)
+            compose.onNode(hasText("Stop & save recording") and hasAnyAncestor(isDialog())).performClick()
+            compose.waitUntil(15000) { !RecordingService.active.value }
+            compose.onNodeWithText("A thought, kept.").assertIsDisplayed()
+            compose.onNodeWithText("Back to my day").performClick()
+        } finally { activity.startService(Intent(activity, RecordingService::class.java).setAction(RecordingService.STOP)) }
+        Unit
+    }
+    @Test fun failedFinalTranscriptionDoesNotEraseLiveDraft() = runBlocking {
+        val graph = compose.activity.daybook
+        val entry = Entry(day = java.time.LocalDate.now().toString(), kind = "voice", text = "A draft that was already visible.", status = "pending")
+        val path = graph.media.newPath("wav")
+        val file = graph.media.file(path)
+        java.io.RandomAccessFile(file, "rw").use { Wav.header(it, 0) }
+        val attachment = Attachment(entryId = entry.id, path = path, kind = "audio", bytes = file.length())
+        graph.repository.change { it.copy(entries = it.entries + entry, attachments = it.attachments + attachment) }
+        try {
+            androidx.work.testing.TestListenableWorkerBuilder<TranscriptionWorker>(compose.activity)
+                .setInputData(androidx.work.workDataOf("entryId" to entry.id)).build().doWork()
+            val retained = graph.repository.read().entries.first { it.id == entry.id }
+            assertEquals(entry.text, retained.text)
+            assertEquals("error", retained.status)
+            assertTrue(file.isFile)
+        } finally { graph.deleteEntry(entry.id) }
+    }
+
 }

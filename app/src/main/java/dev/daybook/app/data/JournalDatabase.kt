@@ -70,6 +70,13 @@ class JournalRepository(private val db: JournalDatabase) : JournalStorage {
     suspend fun undo(id: String) = change { s -> s.copy(activities = s.activities.map { if (it.id == id) it.copy(undone = true) else it }) }
     suspend fun reject(id: String) = change { s -> s.copy(suggestions = s.suggestions.map { if (it.id == id && it.status == "pending") it.copy(status = "rejected") else it }) }
     suspend fun confirm(id: String, amount: Double, note: String) = change { JournalRules.confirm(it, id, amount, note) }
+    suspend fun saveItem(item: ListItem) = change { s ->
+        require(item.kind in setOf("todo", "idea") && item.title.isNotBlank())
+        s.copy(items = s.items.filterNot { it.id == item.id } + item)
+    }
+    suspend fun rejectProposal(id: String) = change { s -> s.copy(proposals = s.proposals.map { if (it.id == id && it.status == "pending") it.copy(status = "rejected") else it }) }
+    suspend fun approveProposal(id: String, title: String, details: String, goal: Goal? = null) = change { PlannerRules.approve(it, id, title, details, goal) }
+    suspend fun undoProposal(id: String) = change { PlannerRules.undo(it, id) }
     suspend fun archive(id: String) = change { s -> s.copy(goals = s.goals.map { if (it.id == id) it.copy(archived = true) else it }) }
     suspend fun deleteEntry(id: String): List<Attachment> {
         var removed = emptyList<Attachment>()
@@ -81,13 +88,15 @@ class JournalRepository(private val db: JournalDatabase) : JournalStorage {
             s.copy(entries = s.entries.filterNot { it.id == id }, revisions = s.revisions.filterNot { it.entryId == id },
                 attachments = s.attachments.filterNot { it.entryId == id }, reviews = s.reviews.filterNot { it.id in reviewIds },
                 suggestions = s.suggestions.filterNot { it.reviewId in reviewIds },
+                proposals = s.proposals.filterNot { it.reviewId in reviewIds },
+                items = s.items.map { if (id in it.sources) it.copy(sources = it.sources - id) else it },
                 activities = s.activities.map { if (id in it.sources) it.copy(sources = it.sources - id) else it })
         }
         return removed
     }
     private inline fun <reified T> List<DocumentRow>.of(kind: String): List<T> = filter { it.kind == kind }.map { gson.fromJson(it.json, T::class.java) }
     private fun decode(rows: List<DocumentRow>) = Snapshot(rows.of("entry"), rows.of("revision"), rows.of("attachment"),
-        rows.of("goal"), rows.of("activity"), rows.of("review"), rows.of("suggestion"))
+        rows.of("goal"), rows.of("activity"), rows.of("review"), rows.of("suggestion"), rows.of("list_item"), rows.of("proposal"))
     private fun encode(s: Snapshot): List<DocumentRow> = buildList {
         s.entries.forEach { add(DocumentRow(it.id, "entry", it.day, gson.toJson(it))) }
         s.revisions.forEach { add(DocumentRow(it.id, "revision", "", gson.toJson(it))) }
@@ -96,5 +105,7 @@ class JournalRepository(private val db: JournalDatabase) : JournalStorage {
         s.activities.forEach { add(DocumentRow(it.id, "activity", it.day, gson.toJson(it))) }
         s.reviews.forEach { add(DocumentRow(it.id, "review", it.day, gson.toJson(it))) }
         s.suggestions.forEach { add(DocumentRow(it.id, "suggestion", it.day, gson.toJson(it))) }
+        s.items.forEach { add(DocumentRow(it.id, "list_item", "", gson.toJson(it))) }
+        s.proposals.forEach { add(DocumentRow(it.id, "proposal", it.day, gson.toJson(it))) }
     }
 }

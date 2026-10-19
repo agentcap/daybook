@@ -52,6 +52,11 @@ class StorageIntegrationTest {
             state.copy(reviews = listOf(review), suggestions = listOf(Suggestion(reviewId = review.id, goalId = goal.id,
                 day = e.day, amount = 600.0, note = "Dinner estimate", sources = listOf(e.id), estimated = true)))
         }
+        repo.change { state ->
+            val proposed = ProposedItem("todo", "Book a cooking class", "Call tomorrow.", listOf(e.id, photo.entryId))
+            val staged = PlannerRules.proposals(state, state.reviews.single(), listOf(proposed))
+            PlannerRules.approve(staged, staged.proposals.single().id, proposed.title, proposed.details)
+        }
         val before = repo.read()
         val backup = temp("daybook")
         backups.export(Uri.fromFile(backup), password.clone())
@@ -63,6 +68,9 @@ class StorageIntegrationTest {
         assertEquals("I ate dinner.", after.entries.first { it.id == e.id }.text)
         assertEquals(before.revisions, after.revisions)
         assertEquals(before.activities, after.activities)
+        assertEquals(before.items, after.items)
+        assertEquals(before.proposals.single().createdId, after.proposals.single().createdId)
+        assertTrue(PlannerRules.current(after, after.proposals.single()))
         assertEquals("I ate dinner.", after.reviews.single().journal)
         assertEquals(JournalRules.fingerprint(after, e.day), after.reviews.single().fingerprint)
         assertEquals(before.suggestions, after.suggestions)

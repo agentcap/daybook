@@ -6,6 +6,8 @@ Daybook is a personal app with no account, analytics SDK, or app-operated server
 
 Original recordings, original transcripts, edits, photos, goals, confirmed activity, and generated review history live in app-private storage. Android protects that storage with the device's normal app isolation and device encryption; Daybook does not claim a separately encrypted Room database.
 
+Live transcript drafts, to-dos, ideas, and proposed new items are also stored locally. Live speech processes short audio windows on the phone; it does not stream audio to a provider.
+
 Voice transcription uses whisper.cpp and a local English base.en model. A one-time model download contacts Hugging Face. The app verifies SHA-256 `a03779c86df3323075f5e796cb2ce5029f00ec8869eee3fdfb897afe36c6d002` before installing the 147,964,211-byte file. The model uses CPU inference, with no dependency on Samsung's speech-service availability.
 
 Photos are copied into private storage. Originals remain intact; upload copies are orientation-corrected, resized to at most 1280 pixels on the long edge, and encoded as JPEG without original EXIF metadata.
@@ -15,6 +17,8 @@ Original audio is retained until the associated note is deleted. There is no pas
 ## What goes to OpenAI
 
 After you enable cloud reviews, a requested day review sends that day's current note text, attached photo upload copies, active goals, and confirmed daily activity to `https://api.openai.com/v1/responses`. All attached daily photos are included, including for automatic nightly reviews. The app does not read the rest of your gallery. Audio is never included.
+
+The request also includes the title and kind of open, unarchived to-dos and ideas to help avoid duplicate suggestions. Their details are not sent as list context, although details included in that day’s notes are part of the journal text. New goals, to-dos, and ideas require approval before creation, separately from confirming goal progress or calorie estimates.
 
 The default model is configurable `gpt-5.4-mini`. The request uses structured outputs, `store: false`, and no tools. Journal text/images are treated as source material rather than instructions. Referenced goal, photo, and entry IDs are validated locally. Generated goal updates require human confirmation.
 
@@ -29,6 +33,8 @@ The optional app lock uses a strong biometric or device credential. It covers in
 ## Encrypted backups
 
 A full backup contains a versioned JSON manifest and exact copies of referenced media inside an encrypted ZIP stream. Settings are included; API keys, Keystore keys, downloaded models, caches, and temporary files are not.
+
+Lists, proposal decisions, and their supporting entry references are included. Daily Markdown export includes list items linked to the exported day’s notes, but is not a full list or media backup.
 
 Format version 1 uses PBKDF2-HMAC-SHA256 (600,000 rounds and a random 16-byte salt), a 256-bit AES key, and independently authenticated 64 KiB AES-GCM segments. A random 8-byte nonce prefix plus the segment counter produces each 12-byte nonce. Counters and the format marker are authenticated. A mandatory authenticated terminal segment rejects truncated files. Decryption processes bounded segments rather than buffering an entire media archive in memory.
 

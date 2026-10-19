@@ -30,10 +30,15 @@ private val Dark = darkColorScheme(
     val base = Typography()
     MaterialTheme(colorScheme = if (dark) Dark else Light,
         typography = base.copy(
-            headlineLarge = base.headlineLarge.copy(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold, fontSize = 34.sp, lineHeight = 39.sp, letterSpacing = (-1.2).sp),
-            headlineMedium = base.headlineMedium.copy(fontWeight = FontWeight.Bold, letterSpacing = (-0.7).sp),
-            titleLarge = base.titleLarge.copy(fontWeight = FontWeight.SemiBold, letterSpacing = (-0.5).sp),
-            bodyLarge = base.bodyLarge.copy(lineHeight = 25.sp)),
+            headlineLarge = base.headlineLarge.copy(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold, fontSize = 27.sp, lineHeight = 32.sp, letterSpacing = (-0.7).sp),
+            headlineMedium = base.headlineMedium.copy(fontSize = 23.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp),
+            titleLarge = base.titleLarge.copy(fontSize = 19.sp, lineHeight = 25.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.3).sp),
+            titleMedium = base.titleMedium.copy(fontSize = 15.sp, lineHeight = 21.sp),
+            titleSmall = base.titleSmall.copy(fontSize = 14.sp, lineHeight = 20.sp),
+            bodyMedium = base.bodyMedium.copy(fontSize = 13.sp, lineHeight = 20.sp),
+            bodySmall = base.bodySmall.copy(fontSize = 12.sp, lineHeight = 17.sp),
+            labelMedium = base.labelMedium.copy(fontSize = 11.sp, lineHeight = 15.sp),
+            bodyLarge = base.bodyLarge.copy(fontSize = 14.sp, lineHeight = 22.sp)),
         shapes = Shapes(small = RoundedCornerShape(14.dp), medium = RoundedCornerShape(20.dp), large = RoundedCornerShape(28.dp)),
         content = content)
 }

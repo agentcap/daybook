@@ -27,7 +27,7 @@ data class Suggestion(val id: String = newId(), val reviewId: String, val goalId
 data class Snapshot(val entries: List<Entry> = emptyList(), val revisions: List<Revision> = emptyList(),
     val attachments: List<Attachment> = emptyList(), val goals: List<Goal> = emptyList(),
     val activities: List<Activity> = emptyList(), val reviews: List<Review> = emptyList(),
-    val suggestions: List<Suggestion> = emptyList())
+    val suggestions: List<Suggestion> = emptyList(), val items: List<ListItem> = emptyList(), val proposals: List<Proposal> = emptyList())
 data class Settings(val onboarded: Boolean = false, val wake: String = "09:00", val sleep: String = "22:00",
     val intervalHours: Int = 3, val cleanupTime: String = "22:00", val reminders: Boolean = true,
     val autoCleanup: Boolean = true, val model: String = "gpt-5.4-mini", val biometric: Boolean = false,
@@ -98,8 +98,19 @@ object JournalRules {
         val reviewIds = state.reviews.map { it.id }.toSet()
         state.reviews.forEach { LocalDate.parse(it.day); require(it.sourceIds.orEmpty().all(entries::containsKey)); require(it.captions.all { c -> state.attachments.any { it.id == c.attachmentId } }) }
         state.suggestions.forEach { require(it.reviewId in reviewIds && it.goalId in goals && it.sources.all(entries::containsKey)); require(it.amount.isFinite() && it.amount >= 0) }
+        state.items.forEach { item ->
+            require(item.kind in setOf("todo", "idea") && item.title.isNotBlank() && item.title.length <= 200 && item.details.length <= 4000)
+            require(item.sources.all(entries::containsKey))
+        }
+        state.proposals.forEach { p ->
+            PlannerRules.validate(p.item); LocalDate.parse(p.day)
+            require(p.reviewId in reviewIds && p.item.sources.all { entries[it]?.day == p.day })
+            require(p.sourceFingerprint.matches(Regex("[a-f0-9]{64}")) && p.dedupeKey.matches(Regex("[a-f0-9]{64}")))
+            require(p.status in setOf("pending", "accepted", "rejected", "superseded", "undone"))
+            if (p.status == "accepted") require(if (p.item.kind == "goal") p.createdId in goals else state.items.any { it.id == p.createdId })
+        }
         val ids = state.entries.map { it.id } + state.revisions.map { it.id } + state.attachments.map { it.id } +
-            state.goals.map { it.id } + state.activities.map { it.id } + state.reviews.map { it.id } + state.suggestions.map { it.id }
-        require(ids.distinct().size == ids.size) { "Duplicate record identifiers." }
+            state.goals.map { it.id } + state.activities.map { it.id } + state.reviews.map { it.id } + state.suggestions.map { it.id } + state.items.map { it.id } + state.proposals.map { it.id }
+        require(ids.none { it.isBlank() } && ids.distinct().size == ids.size) { "Duplicate record identifiers." }
     }
 }

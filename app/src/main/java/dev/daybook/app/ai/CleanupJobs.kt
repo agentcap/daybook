@@ -40,7 +40,7 @@ class CleanupWorker(context: Context, params: WorkerParameters) : CoroutineWorke
             val photos = state.attachments.filter { it.entryId in ids && it.kind == "photo" }.map {
                 ReviewPhoto(it.id, it.entryId, Base64.getEncoder().encodeToString(graph.media.uploadPhoto(it)))
             }
-            val input = ReviewInput(day, entries, state.goals.filter { !it.archived }, photos, state.activities.filter { it.day == day && !it.undone })
+            val input = ReviewInput(day, entries, state.goals.filter { !it.archived }, photos, state.activities.filter { it.day == day && !it.undone }, state.items.filter { !it.done && !it.archived })
             val draft = OpenAiClient().generate(input, graph.keys.read(), settings.model)
             ensureActive()
             val review = Review(day = day, fingerprint = fingerprint, journal = draft.journal, summary = draft.summary,
@@ -52,7 +52,7 @@ class CleanupWorker(context: Context, params: WorkerParameters) : CoroutineWorke
                 val suggestions = draft.suggestions.filter { JournalRules.suggestionKey(it.goalId, day, it.sources) !in existing }.map {
                     Suggestion(reviewId = review.id, goalId = it.goalId, day = day, amount = it.amount, note = it.note, sources = it.sources, estimated = it.estimated)
                 }
-                current.copy(reviews = current.reviews + review, suggestions = current.suggestions.map { if (it.day == day && it.status == "pending") it.copy(status = "superseded") else it } + suggestions)
+                PlannerRules.proposals(current.copy(reviews = current.reviews + review, suggestions = current.suggestions.map { if (it.day == day && it.status == "pending") it.copy(status = "superseded") else it } + suggestions), review, draft.discoveries)
             }
             Result.success(workDataOf("reviewId" to review.id))
         } catch (e: CancellationException) { throw e

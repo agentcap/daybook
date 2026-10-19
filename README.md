@@ -4,7 +4,7 @@ A personal Android journal for thoughts, voice notes, everyday photos, and the g
 
 ## Preview
 
-Synthetic sample journal, captured from the running Android app. The meal illustration and review text are fixtures.
+Synthetic sample journal, captured from the running Android app. The meal illustration, review text, planning suggestions, and recording transcript shown in the screenshots are fixtures.
 
 | Today | Journal | Settings |
 | --- | --- | --- |
@@ -12,7 +12,7 @@ Synthetic sample journal, captured from the running Android app. The meal illust
 
 ## Start on your phone
 
-1. Install `releases/daybook-0.2.0.apk`, or build the APK below. This is a signed, non-debuggable build for personal installation.
+1. Install `releases/daybook-0.3.0.apk`, or build the APK below. This is a signed, non-debuggable build for personal installation.
 2. Choose your waking hours, reminder interval, and nightly cleanup time during onboarding. Grant notification permission for check-ins.
 3. Download the English speech model (141 MB) once. Recording works before the download; saved recordings can be transcribed afterwards.
 4. Create goals from Goals → New goal. Templates include gym, cooking, laundry, blogging, learning, and 3000 calories.
@@ -24,9 +24,21 @@ The Today screen shows **distinct goals worked on that day**. Logging partial ef
 
 AI reviews include the selected day's note text and **all photos attached to its journal**, rather than the phone's entire gallery. Original audio never leaves the phone. Generated reviews have their own revision history. Goal and calorie suggestions require your confirmation and can be edited, dismissed, or undone. A later note/edit marks the review outdated; refresh it to include the new content.
 
+## Recording, reflection, and plans
+
+The recording view shows elapsed time, microphone levels, and a local draft transcript. Download the English model once, then use it offline. Previews process short windows beginning after three seconds; text can arrive later on slower devices. Stopping saves the original audio and queues a fuller transcription. Minimize the view to browse the app, or lock the screen while recording. Draft text survives a failed final transcription.
+
+History offers **Journal**, **Calendar**, and **Stats** views. Select a date to browse its original notes or open the day. Stats show saved notes, journal days, photos, goal check-ins, your current streak, and your longest streak. A streak counts consecutive dates with a saved note, with today available to continue yesterday's streak. Goal check-ins count each goal once per day; goal activity alone does not extend a journaling streak.
+
+**Lists** keeps to-dos and ideas outside the journal. Add and edit them manually, mark to-dos done or ideas tried, and archive them. During cleanup, OpenAI can propose goals, concrete to-dos, and ideas from your notes. Review their supporting entries, edit the details, and approve or dismiss each proposal in **Lists → Suggestions**. Creating a goal never counts as working on it. Regenerated reviews retain your decisions, and unused creations can be undone.
+
+| Recording | Calendar | Lists |
+| --- | --- | --- |
+| <img src="docs/screenshots/18-recording.png" alt="Recording with a synthetic live draft" width="250"> | <img src="docs/screenshots/13-calendar.png" alt="Calendar with saved journal dates" width="250"> | <img src="docs/screenshots/17-suggestions.png" alt="New goals, tasks, and ideas awaiting approval" width="250"> |
+
 ## Make it yours
 
-The visual style takes inspiration from [Reflection](https://www.reflection.app/): a soft lavender/blue backdrop, white rounded cards, inset journal photos, date badges, and a floating pill navigation bar. Daybook keeps its own branding and uses no Reflection assets.
+The visual style takes inspiration from [Reflection](https://www.reflection.app/): a soft lavender/blue backdrop, white rounded cards, inset journal photos, date badges, and a floating pill navigation bar. Daybook keeps its own branding and uses no Reflection assets. Compact type gives notes more room while following Android’s font-size preference. Page transitions, changing card sizes, progress indicators, list updates, and recording levels use subtle animations.
 
 Settings is a focused menu: **Reminders & rhythm**, **Voice & offline speech**, **AI daily reviews**, **Privacy & lock**, **Appearance**, **Backups & storage**, and **Home-screen recording**. Choose times with a time picker and an interval from a list, then tap **Save rhythm**. Privacy, theme, and AI switches save immediately; the API key and model have their own save buttons. Errors and successful saves appear on the page.
 
@@ -39,7 +51,7 @@ Enable **Settings → Privacy & lock → Fingerprint & screen lock** to show And
 - Tap the microphone: Daybook opens and starts recording immediately, with no Start confirmation. If app lock is enabled, authenticate first. Grant microphone permission on the first recording and complete onboarding once.
 - Stop using **Stop & save** in the persistent recording notification or on Today. Repeated widget taps while recording do not create another recording.
 
-Install this APK over 0.1.0 to retain existing notes and settings. It uses the same private signing key; no uninstall is needed.
+Install this APK over 0.1.0 or 0.2.0 to retain existing notes and settings. It uses the same private signing key; no uninstall is needed.
 
 ## Build
 
@@ -82,7 +94,7 @@ bash scripts/emulator.sh
 bash scripts/build.sh :app:connectedVerificationAndroidTest
 ```
 
-Instrumentation uses a separate `dev.daybook.app.verification` package, so it does not access the personal app's storage. Normal tests cover journal/goal/search workflows, originals and photo persistence, encrypted backup round trips, invalid passwords, path traversal rejection, and WAV recovery.
+Instrumentation uses a separate `dev.daybook.app.verification` package, so it does not access the personal app's storage. Normal tests cover journal/goal/search workflows, list approvals and undo, calendar/stats, recording controls, retained live drafts, originals and photo persistence, encrypted backup round trips with proposals and media, invalid passwords, path traversal rejection, and WAV recovery.
 
 Optional real-model checks download the actual model and test transcription with airplane mode enabled **on an emulator**:
 

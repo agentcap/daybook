@@ -12,7 +12,7 @@ class OpenAiClientTest {
     @After fun close() { server.shutdown() }
     private val input = ReviewInput("2026-10-18", listOf(Entry(id = "e", day = "2026-10-18", originalText = "Cooked dinner.")), emptyList(), emptyList())
     @Test fun sendsStatelessStructuredRequestAndPreservesInput() {
-        val draft = """{"journal":"I cooked dinner.","summary":"Cooking.","captions":[],"suggestions":[]}"""
+        val draft = """{"journal":"I cooked dinner.","summary":"Cooking.","captions":[],"suggestions":[],"discoveries":[]}"""
         val body = com.google.gson.Gson().toJson(mapOf("status" to "completed", "output" to listOf(mapOf("type" to "message", "content" to listOf(mapOf("type" to "output_text", "text" to draft))))))
         server.enqueue(MockResponse().setBody(body))
         val result = OpenAiClient(OkHttpClient(), server.url("/v1/responses").toString()).generate(input, "synthetic-test-key", "gpt-5.4-mini")

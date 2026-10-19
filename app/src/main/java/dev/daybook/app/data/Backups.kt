@@ -79,7 +79,9 @@ class Backups(private val context: Context, private val repo: JournalRepository,
                 attachments = data.state.attachments.map { it.copy(path = paths.getValue(it.path)) },
                 entries = data.state.entries.map { if (it.status == "recording") it.copy(status = "interrupted", error = "Recording restored from backup. Retry transcription.") else it })
             // File paths are local references. Recompute review fingerprints only for reviews that were current at export.
-            val updated = state.copy(reviews = state.reviews.map { r ->
+            val updated = state.copy(proposals = state.proposals.map { p ->
+                if (p.sourceFingerprint == PlannerRules.sourceFingerprint(data.state, p.item.sources)) p.copy(sourceFingerprint = PlannerRules.sourceFingerprint(state, p.item.sources)) else p
+            }, reviews = state.reviews.map { r ->
                 if (r.fingerprint == JournalRules.fingerprint(data.state, r.day)) r.copy(fingerprint = JournalRules.fingerprint(state, r.day)) else r
             })
             repo.change { updated }; committed = true
@@ -104,6 +106,9 @@ class Backups(private val context: Context, private val repo: JournalRepository,
                 state.revisions.filter { it.entryId == entry.id }.sortedBy { it.created }.forEach { appendLine(); appendLine("### Earlier version"); appendLine(it.text) }
                 state.attachments.filter { it.entryId == entry.id }.forEach { appendLine(); appendLine("Attachment: ${it.id} (${it.kind}; included in full encrypted backup)") }
                 appendLine()
+            }
+            state.items.filter { item -> item.sources.any { id -> state.entries.any { it.id == id && it.day == day } } }.forEach { item ->
+                appendLine("## ${if (item.kind == "todo") "To-do" else "Idea"} · ${item.title}"); appendLine(item.details); appendLine("Status: ${if (item.done) "done / tried" else "open"}"); appendLine()
             }
             state.reviews.filter { it.day == day }.sortedBy { it.created }.forEach {
                 appendLine("## Cleaned review · ${java.time.Instant.ofEpochMilli(it.created)}"); appendLine()
