@@ -69,6 +69,8 @@ class ScreenshotTour {
         shot("08-moments")
         compose.onNodeWithText("Goals").performClick(); shot("04-goals")
         compose.onNodeWithText("History").performClick(); shot("05-history")
+        compose.onNodeWithText("Weekly reflection").performClick(); shot("22-weekly-reflection")
+        compose.onNodeWithText("Back to journal").performClick()
         compose.onNodeWithText("Calendar", substring = false).performClick(); shot("13-calendar")
         compose.onNodeWithText("Stats", substring = false).performClick(); shot("14-stats")
         val planning = Entry(id = "sample-plans", day = day, originalText = "I want to learn Italian. I need to book a dentist visit. Maybe I could try pottery.")
@@ -85,7 +87,16 @@ class ScreenshotTour {
         compose.onNodeWithText("Ideas", substring = false).performClick(); shot("16-ideas")
         compose.onNodeWithText("Suggestions", substring = true).performClick(); shot("17-suggestions")
         compose.onNodeWithText("Settings").performClick(); shot("06-settings")
-        compose.onNodeWithText("Reminders & rhythm").performClick(); shot("09-rhythm")
+        compose.onNodeWithText("Processing & downloads").performScrollTo().performClick(); shot("24-processing")
+        compose.onNodeWithText("Back to journal").performClick()
+        compose.onNodeWithText("Backups & storage").performScrollTo().performClick()
+        compose.onNodeWithText("Automatic backups & recovery").performScrollTo().performClick(); shot("23-backup-recovery")
+        compose.onNodeWithText("Back to journal").performClick()
+        compose.onNodeWithText("All settings").performScrollTo().performClick()
+        compose.onNodeWithText("Privacy policy & feedback").performScrollTo().performClick(); shot("25-privacy-feedback")
+        compose.onNodeWithText("Feedback draft", substring = false).performScrollTo(); shot("27-feedback")
+        compose.onNodeWithText("Back to journal").performScrollTo().performClick()
+        compose.onNodeWithText("Reminders & rhythm").performScrollTo().performClick(); shot("09-rhythm")
         compose.onNodeWithText("All settings").performScrollTo().performClick()
         compose.onNodeWithText("Privacy & lock").performScrollTo().performClick(); shot("10-privacy")
         compose.onNodeWithText("All settings").performScrollTo().performClick()
@@ -107,6 +118,6 @@ class ScreenshotTour {
                     previewStatus = "Synthetic transcript for the interface preview."), true, true, {}, {}, {})
             }
         } }
-        shot("18-recording")
+        shot("28-recording-preview")
     }
 }

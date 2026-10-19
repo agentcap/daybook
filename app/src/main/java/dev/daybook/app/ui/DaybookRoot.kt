@@ -38,12 +38,14 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
     val state by graph.state.collectAsState()
+    val rawState by graph.rawState.collectAsState()
     val preferences by graph.preferences.changes.collectAsState(initial = null)
     var initialized by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { graph.initialized.await(); initialized = true }
     val settings = preferences ?: Settings()
     val dark = settings.theme == "dark" || (settings.theme == "system" && isSystemInDarkTheme())
-    DaybookTheme(dark) {
+    val reducedMotion = settings.reduceMotion || android.provider.Settings.Global.getFloat(activity.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
+    DaybookTheme(dark, reducedMotion) {
         val colors = MaterialTheme.colorScheme
         val backdrop = androidx.compose.ui.graphics.Brush.linearGradient(if (dark)
             listOf(Color(0xFF1B1826), Color(0xFF211B2D), Color(0xFF191622))
@@ -73,6 +75,8 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
             LaunchedEffect(Unit) {
                 while (true) { delay(60_000); val next = LocalDate.now(); if (day == today.toString()) day = next.toString(); today = next }
             }
+            var toolsPage by remember { mutableStateOf<String?>(null) }
+            var cloudPreviewDay by remember { mutableStateOf<String?>(null) }
             var write by remember { mutableStateOf(false) }
             var recordingSheet by rememberSaveable { mutableStateOf(false) }
             var listKind by remember { mutableStateOf<String?>(null) }
@@ -134,7 +138,7 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
                         withContext(Dispatchers.IO) { graph.backup.restore(uri, pass) }
                         graph.cleanup.reconfigure(graph.preferences.read().reviewProvider)
                         graph.scheduler.reschedule()
-                        graph.repository.read().entries.filter { it.status == "pending" }.forEach { graph.transcriptions.enqueue(it.id) }
+                        graph.repository.read().entries.filter { it.status == "pending" && it.deletedAt == 0L }.forEach { graph.transcriptions.enqueue(it.id) }
                         snacks.showSnackbar("Journal restored. Enter your API key separately if needed.")
                     } finally { busy = null }
                 }
@@ -176,29 +180,30 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
                 Surface(Modifier.navigationBarsPadding().padding(horizontal = 18.dp, vertical = 8.dp).fillMaxWidth(),
                     shape = RoundedCornerShape(36.dp), color = colors.surface.copy(alpha = 0.97f),
                     shadowElevation = 8.dp, border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.6f))) {
-                NavigationBar(containerColor = Color.Transparent, windowInsets = WindowInsets(0, 0, 0, 0), modifier = Modifier.height(66.dp)) {
+                NavigationBar(containerColor = Color.Transparent, windowInsets = WindowInsets(0, 0, 0, 0), modifier = Modifier.heightIn(min = 80.dp)) {
                     val destinations = listOf(Triple(0, "Today", Icons.Outlined.Today), Triple(1, "Goals", Icons.Outlined.Flag),
                         Triple(4, "Lists", Icons.Outlined.Checklist), Triple(2, "History", Icons.Outlined.History), Triple(3, "Settings", Icons.Outlined.Settings))
                     destinations.forEach { (i, title, icon) ->
                         NavigationBarItem(selected = tab == i, onClick = { tab = i; if (i == 0) day = LocalDate.now().toString() },
-                            icon = { Icon(icon, title, Modifier.size(22.dp)) }, label = { Text(title, style = MaterialTheme.typography.labelMedium) })
+                            icon = { Icon(icon, null, Modifier.size(22.dp)) }, label = { Text(title, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) })
                     }
                 }
                 }
             }) { padding ->
                 AnimatedContent(targetState = tab, modifier = Modifier.fillMaxSize(), transitionSpec = {
-                    (fadeIn(tween(180)) + slideInHorizontally(tween(180)) { it / 24 }) togetherWith fadeOut(tween(120))
+                    if (reducedMotion) EnterTransition.None togetherWith ExitTransition.None
+                    else (fadeIn(tween(180)) + slideInHorizontally(tween(180)) { it / 24 }) togetherWith fadeOut(tween(120))
                 }, label = "navigation transition") { destination ->
                 when (destination) {
                     0 -> TodayScreen(state, day, active, cleanupInfo, Modifier.padding(padding),
                         onDate = { day = it }, onWrite = { write = true }, onVoice = ::startRecording, onPhoto = { photo = true },
                         onStop = { activity.startService(Intent(activity, RecordingService::class.java).setAction(RecordingService.STOP)) },
-                        onEntry = { selectedEntry = it }, onCleanup = { graph.cleanup.enqueue(day, force = true, provider = settings.reviewProvider) },
+                        onEntry = { selectedEntry = it }, onCleanup = { if (settings.reviewProvider == "openai") cloudPreviewDay = day else graph.cleanup.enqueue(day, force = true, provider = settings.reviewProvider, charging = settings.cleanupChargingOnly) },
                         onSuggestion = { selectedSuggestion = it }, onReject = { run { graph.repository.reject(it) } },
                         onUndo = { run { graph.repository.undo(it) } }, onLog = { logGoal = it }, onGoals = { tab = 1 }, onLists = { initiallySuggestions = true; tab = 4 })
                     1 -> GoalsScreen(state, day, Modifier.padding(padding), onNew = { newGoal = true }, onLog = { logGoal = it },
                         onArchive = { id, archived -> run { graph.repository.change { s -> s.copy(goals = s.goals.map { if (it.id == id) it.copy(archived = archived) else it }) } } })
-                    2 -> HistoryScreen(state, Modifier.padding(padding), onEntry = { selectedEntry = it }, today = today) { selected -> day = selected; tab = 0 }
+                    2 -> HistoryScreen(state, Modifier.padding(padding), onEntry = { selectedEntry = it }, today = today, onWeekly = { toolsPage = "weekly" }) { selected -> day = selected; tab = 0 }
                     4 -> ListsScreen(state, Modifier.padding(padding), initiallySuggestions,
                         onNew = { listKind = it; editingItem = null }, onEdit = { editingItem = it; listKind = it.kind },
                         onUpdate = { item -> run { graph.repository.saveItem(item) } },
@@ -222,7 +227,7 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
                                 else scope.launch { snacks.showSnackbar("Touch and hold your home screen, then choose Widgets → Daybook → Daybook Record.") }
                             }, localReady = localReady, localWork = localInfo, localBytes = graph.localModel.usage(),
                         onLocalDownload = { graph.localModel.download() }, onLocalPause = { graph.localModel.pause() },
-                        onLocalDelete = { graph.localModel.delete(); localRevision++ })
+                        onLocalDelete = { graph.localModel.delete(); localRevision++ }, onTools = { toolsPage = it })
                     }
                 }
             }
@@ -237,10 +242,12 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
                 }
                 RecordingScreen(display, active, modelReady, onStart = ::startRecording,
                     onStop = { activity.startService(Intent(activity, RecordingService::class.java).setAction(RecordingService.STOP)) },
-                    onDismiss = { recordingSheet = false })
+                    onDismiss = { recordingSheet = false },
+                    onPause = { activity.startService(Intent(activity, RecordingService::class.java).setAction(RecordingService.PAUSE)) },
+                    onBookmark = { activity.startService(Intent(activity, RecordingService::class.java).setAction(RecordingService.BOOKMARK)) }, reduceMotion = reducedMotion)
             }
             if (photo) AlertDialog(onDismissRequest = { photo = false }, title = { Text("Add a photo") },
-                text = { Text("Attach a meal, a place, or something you want to remember. Attached photos are included when you clean up this day with OpenAI.") },
+                text = { Text("Attach a meal, a place, or something you want to remember. Photos can be included in OpenAI reviews. Open a saved note to keep it on-device or exclude its photos.") },
                 confirmButton = { Button(onClick = {
                     photo = false
                     run {
@@ -254,7 +261,7 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
                 EntryDialog(entry, state, graph, onDismiss = { selectedEntry = null },
                     onSave = { text -> run { graph.repository.editEntry(id, text); selectedEntry = null } },
                     onDelete = { run { graph.deleteEntry(id); selectedEntry = null } },
-                    onRetry = { graph.transcriptions.enqueue(id) })
+                    onRetry = { run { graph.retryTranscription(id) } })
             } }
             listKind?.let { kind ->
                 ListItemDialog(kind, initial = editingItem, onDismiss = { listKind = null; editingItem = null }) { title, details ->
@@ -291,6 +298,15 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
                     if (mode == "export") exportBackup.launch("daybook-${LocalDate.now()}.daybook") else restoreBackup.launch(arrayOf("*/*"))
                 }
             }
+            cloudPreviewDay?.let { previewDay ->
+                CloudPreviewDialog(rawState, previewDay, settings.cloudConsent, onDismiss = { cloudPreviewDay = null },
+                    onConfirm = { cloudPreviewDay = null; graph.cleanup.enqueue(previewDay, force = true, provider = "openai", charging = settings.cleanupChargingOnly) },
+                    onSettings = { cloudPreviewDay = null; tab = 3 }, graph = graph)
+            }
+            toolsPage?.let { page ->
+                ReleaseHub(graph, activity, page, onDismiss = { toolsPage = null },
+                    onEntry = { toolsPage = null; selectedEntry = it })
+            }
             if (busy != null) AlertDialog(onDismissRequest = {}, confirmButton = {}, title = { Text(busy!!) },
                 text = { Column { LinearProgressIndicator(Modifier.fillMaxWidth()); Spacer(Modifier.height(12.dp)); Text("Keep Daybook open until this finishes.") } })
             if (settings.biometric && !unlocked) androidx.compose.ui.window.Dialog(
@@ -318,7 +334,7 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
     if (subtitle.isNotEmpty()) Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 @Composable fun SectionCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
-    Card(modifier.fillMaxWidth().animateContentSize(), shape = RoundedCornerShape(24.dp), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+    Card(modifier.fillMaxWidth().animateContentSize(animationSpec = if (LocalReduceMotion.current) androidx.compose.animation.core.snap() else androidx.compose.animation.core.spring()), shape = RoundedCornerShape(24.dp), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = content)
     }
 }

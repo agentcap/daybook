@@ -2,6 +2,8 @@ package dev.daybook.app.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.*
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -60,12 +62,12 @@ private fun clockText(value: String) = LocalTime.parse(value).format(DateTimeFor
     Text("Local time · no reminders during quiet hours.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 @Composable fun ToggleRow(title: String, subtitle: String, checked: Boolean, onChange: (Boolean) -> Unit, enabled: Boolean = true) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onChange), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.titleSmall)
             if (subtitle.isNotBlank()) Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Switch(checked, onChange, enabled = enabled)
+        Switch(checked, onCheckedChange = null, enabled = enabled)
     }
 }
 @Composable fun Onboarding(initial: Settings, modelReady: Boolean, onDownload: () -> Unit, onSave: (Settings) -> Unit) {
@@ -120,7 +122,7 @@ fun SettingsScreen(settings: Settings, hasKey: Boolean, modelReady: Boolean, mod
     onDeleteModel: () -> Unit, onPauseDownload: () -> Unit, onBackup: () -> Unit, onRestore: () -> Unit,
     onMarkdown: () -> Unit, onPermissions: () -> Unit, onBattery: () -> Unit, onAddWidget: () -> Unit,
     localReady: Boolean, localWork: WorkInfo?, localBytes: Long, onLocalDownload: () -> Unit,
-    onLocalPause: () -> Unit, onLocalDelete: suspend () -> Unit) {
+    onLocalPause: () -> Unit, onLocalDelete: suspend () -> Unit, onTools: (String) -> Unit = {}) {
     var page by rememberSaveable { mutableStateOf<String?>(null) }
     var draft by remember(settings) { mutableStateOf(settings) }
     var apiKey by remember { mutableStateOf("") }
@@ -166,6 +168,10 @@ fun SettingsScreen(settings: Settings, hasKey: Boolean, modelReady: Boolean, mod
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 SettingsLink(Icons.Outlined.Widgets, "Home-screen recording", "One tap to capture a thought") { page = "widget" }
             }
+            SectionCard {
+                SettingsLink(Icons.Outlined.Sync, "Processing & downloads", "Task status, retries, Wi-Fi and charging choices") { onTools("processing") }
+                SettingsLink(Icons.Outlined.PrivacyTip, "Privacy policy & feedback", "Your data choices and a private feedback draft") { onTools("privacy") }
+            }
             Text("Daybook ${dev.daybook.app.BuildConfig.VERSION_NAME} · Made for the everyday.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
             TextButton(onClick = { page = null; error = ""; saved = "" }, contentPadding = PaddingValues(0.dp)) {
@@ -205,6 +211,7 @@ fun SettingsScreen(settings: Settings, hasKey: Boolean, modelReady: Boolean, mod
                         }
                         if (modelWork?.state in setOf(WorkInfo.State.RUNNING, WorkInfo.State.ENQUEUED)) OutlinedButton(onClick = onPauseDownload) { Text("Pause download") }
                         else Button(onClick = onDownload, enabled = !modelReady) { Text(if (modelReady) "Speech model ready" else "Download English model") }
+                        OutlinedButton(onClick = { onTools("processing") }) { Text("Processing & download options") }
                         Text("Recording keeps going when the screen locks. Stop from the recording notification or Today. Each note can be up to 30 minutes.", style = MaterialTheme.typography.bodySmall)
                     }
                 }
@@ -222,6 +229,7 @@ fun SettingsScreen(settings: Settings, hasKey: Boolean, modelReady: Boolean, mod
                     }
                     SectionCard {
                         if (settings.reviewProvider == "openai") ToggleRow("Allow OpenAI reviews", "Sends this day’s text and attached photos, with existing goals and list titles for context. Audio stays on your phone.", settings.cloudConsent, { save(settings.copy(cloudConsent = it)) }, !saving)
+                        ToggleRow("Cleanup only while charging", "Daily reviews wait for a charger, including manual requests.", settings.cleanupChargingOnly, { save(settings.copy(cleanupChargingOnly = it)) }, !saving)
                         ToggleRow("Automatic nightly cleanup", if (settings.reviewProvider == "local") "Runs on this phone after downloading the review model." else "Uses your saved key and internet connection.", settings.autoCleanup, { save(settings.copy(autoCleanup = it)) }, !saving)
                         TimeSetting("Nightly review time", settings.cleanupTime) { save(settings.copy(cleanupTime = it)) }
                         Text("Originals are preserved. Review new goals, list items, progress, and calorie estimates before applying them.", style = MaterialTheme.typography.bodySmall)
@@ -268,7 +276,7 @@ fun SettingsScreen(settings: Settings, hasKey: Boolean, modelReady: Boolean, mod
                     Text("Scheduled cleanup and an ongoing recording can continue while your journal is locked.", style = MaterialTheme.typography.bodySmall)
                     HorizontalDivider()
                     Text("Your memories stay with you", style = MaterialTheme.typography.titleMedium)
-                    Text("Original audio and photos stay until you delete their note. Automatic Android cloud backup and device transfer are disabled. Use an encrypted backup before uninstalling.", style = MaterialTheme.typography.bodySmall)
+                    Text("Original audio and photos stay until you permanently delete their note. Recently Deleted keeps notes recoverable for 30 days. Automatic Android cloud backup and device transfer are disabled. Use an encrypted backup before uninstalling.", style = MaterialTheme.typography.bodySmall)
                 }
                 "appearance" -> SectionCard {
                     Text("Choose a theme", style = MaterialTheme.typography.titleLarge)
@@ -280,11 +288,14 @@ fun SettingsScreen(settings: Settings, hasKey: Boolean, modelReady: Boolean, mod
                             RadioButton(settings.theme == value, { save(settings.copy(theme = value)) }, enabled = !saving)
                         }
                     }
+                    ToggleRow("Reduce animations", "Disable decorative motion. Android’s animation setting is also respected.", settings.reduceMotion, { save(settings.copy(reduceMotion = it)) }, !saving)
                     Text("Soft lavender, room to breathe, and a place for every moment.", style = MaterialTheme.typography.bodySmall)
                 }
                 "storage" -> {
                     SectionCard {
                         Text("Keep a safe copy", style = MaterialTheme.typography.titleLarge)
+                        OutlinedButton(onClick = { onTools("backup") }, modifier = Modifier.fillMaxWidth()) { Text("Automatic backups & recovery") }
+                        TextButton(onClick = { onTools("trash") }) { Text("Recently Deleted") }
                         Text("A full backup includes your notes, goals, original audio, and photos. Your API key and downloaded model are excluded.")
                         Button(onClick = onBackup, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Outlined.Lock, null); Spacer(Modifier.width(8.dp)); Text("Create encrypted backup") }
                         OutlinedButton(onClick = onRestore, modifier = Modifier.fillMaxWidth()) { Text("Restore a backup") }

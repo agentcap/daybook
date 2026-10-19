@@ -51,3 +51,15 @@ Safeguards limit the manifest to 32 MiB, each attachment to 1 GiB, total extract
 Deleting a note removes its original media, revisions, and generated reviews for that day. Confirmed goal activity remains, with deleted source links removed. Exported files and previously created backups are independent copies and are not deleted by the app.
 
 Android cloud backup and device-transfer rules exclude app data. Uninstalling therefore removes the local journal. Make your own encrypted backups regularly and retain their passphrases.
+
+## Beta recovery and publishing changes
+
+Per-entry on-device and photo-inclusion choices now control future OpenAI cleanup. Manual cleanup previews its eligible content, timestamps, and context. Context derived from private source links is excluded; independently entered goal/list titles remain context. These controls cannot retract an already sent request.
+
+Recently Deleted hides notes/media and source-linked reviews for 30 days. Restoration recovers originals and links; permanent deletion removes media and that day's generated reviews. Confirmed goal activity remains. Expired trash is purged by approximate background maintenance. Full backups include trash; independent backup/export/provider copies are not deleted by live-journal deletion.
+
+Scheduled backups use the same passphrase-encrypted archive as manual full backups and a persisted, user-granted document-tree URI. The explicitly remembered passphrase uses a separate Android Keystore secret; schedule state, folder permissions, and that secret are not exported. Background work may be delayed; the UI records last success and a clear failure. Each backup creates a new document and previous successful backups are retained on failure. Seven tracked successful files are retained.
+
+Backup manifests now use version 2; version 1 remains readable. Credentials and model files remain excluded. Restore remaps private media paths before its database commit; concurrent recording creation, imports, permanent deletion, and backup/restore share a media operation lock. Transcription rejects stale attachment paths after restore.
+
+Feedback is a draft shared through a user-selected app. No diagnostic upload is automatic. A public release needs real developer/contact details and a hosted policy; the local beta includes the readable policy and a publishing gate that rejects missing metadata.

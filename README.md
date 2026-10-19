@@ -4,7 +4,7 @@ A personal Android journal for thoughts, voice notes, everyday photos, and the g
 
 ## Preview
 
-Synthetic sample journal, captured from the running Android app. The meal illustration, review text, planning suggestions, and recording transcript shown in the screenshots are fixtures.
+Synthetic sample journal, captured from the running Android app. The meal illustration, review text and planning suggestions shown in the screenshots are fixtures. The recording screenshot shows actual emulator capture with no detected speech.
 
 | Today | Journal | Settings |
 | --- | --- | --- |
@@ -12,7 +12,7 @@ Synthetic sample journal, captured from the running Android app. The meal illust
 
 ## Start on your phone
 
-1. Install `releases/daybook-0.4.1.apk`, or build the APK below. This is a signed, non-debuggable build for personal installation.
+1. Install `releases/daybook-0.5.0-beta.1.apk`, or build the APK below. This is a signed, non-debuggable build for personal installation.
 2. Choose your waking hours, reminder interval, and nightly cleanup time during onboarding. Grant notification permission for check-ins.
 3. Download the English speech model (141 MB) once. Recording works before the download; saved recordings can be transcribed afterwards.
 4. Create goals from Goals → New goal. Templates include gym, cooking, laundry, blogging, learning, and 3000 calories.
@@ -22,7 +22,7 @@ A note can be written, recorded, or photographed. Tap a saved note to play its o
 
 The Today screen shows **distinct goals worked on that day**. Logging partial effort counts even with amount zero; completing a goal is separate. Daily and weekly numeric progress is calculated by the app. Weekly goals use Monday–Sunday, and historical views only include activity through the selected day.
 
-OpenAI reviews include the selected day's note text and **all photos attached to its journal**, rather than the phone's entire gallery. On-device reviews use note text only. Original audio never leaves the phone. Generated reviews have their own revision history. Goal and calorie suggestions require your confirmation and can be edited, dismissed, or undone. A later note/edit marks the review outdated; refresh it to include the new content.
+OpenAI reviews include the selected day's eligible note text and journal-attached photos, following each note's privacy choices. The phone's other photos are not included. On-device reviews use note text only. Original audio is never sent for transcription or cleanup. Open a note to keep it on-device or exclude its photos from future cloud reviews. Manual OpenAI cleanup previews eligible notes, photos, and context before sending. Generated reviews have their own revision history. Goal and calorie suggestions require your confirmation and can be edited, dismissed, or undone. A later note/edit marks the review outdated; refresh it to include the new content.
 
 ## Choose local or cloud reviews
 
@@ -34,15 +34,15 @@ Switching providers requeues unfinished cleanup with the appropriate network req
 
 ## Recording, reflection, and plans
 
-The recording view shows elapsed time, microphone levels, and a local draft transcript. Download the English model once, then use it offline. Previews process short windows beginning after three seconds; text can arrive later on slower devices. Stopping saves the original audio and queues a fuller transcription. Minimize the view to browse the app, or lock the screen while recording. Draft text survives a failed final transcription.
+The recording view shows elapsed time, microphone levels, and a local draft transcript. Download the English model once, then use it offline. Previews process short windows beginning after three seconds; text can arrive later on slower devices. Pause and resume without adding pause-time silence. Mark a moment with an audio bookmark; after processing, use Transcript timeline in the note to seek to a segment of the original audio. Segment times are approximate. Stopping saves the original audio and queues a fuller transcription. Minimize the view to browse the app, or lock the screen while recording. Draft text survives a failed final transcription.
 
 History offers **Journal**, **Calendar**, and **Stats** views. Select a date to browse its original notes or open the day. Stats show saved notes, journal days, photos, goal check-ins, your current streak, and your longest streak. A streak counts consecutive dates with a saved note, with today available to continue yesterday's streak. Goal check-ins count each goal once per day; goal activity alone does not extend a journaling streak.
 
-**Lists** keeps to-dos and ideas outside the journal. Add and edit them manually, mark to-dos done or ideas tried, and archive them. During cleanup, OpenAI can propose goals, concrete to-dos, and ideas from your notes. Review their supporting entries, edit the details, and approve or dismiss each proposal in **Lists → Suggestions**. Creating a goal never counts as working on it. Regenerated reviews retain your decisions, and unused creations can be undone.
+**Lists** keeps to-dos and ideas outside the journal. Add and edit them manually, mark to-dos done or ideas tried, and archive them. During cleanup, either review provider can propose goals, concrete to-dos, and ideas from your notes. Review their supporting entries, edit the details, and approve or dismiss each proposal in **Lists → Suggestions**. Creating a goal never counts as working on it. Regenerated reviews retain your decisions, and unused creations can be undone.
 
 | Recording | Calendar | Lists |
 | --- | --- | --- |
-| <img src="docs/screenshots/18-recording.png" alt="Recording with a synthetic live draft" width="250"> | <img src="docs/screenshots/13-calendar.png" alt="Calendar with saved journal dates" width="250"> | <img src="docs/screenshots/17-suggestions.png" alt="New goals, tasks, and ideas awaiting approval" width="250"> |
+| <img src="docs/screenshots/18-recording.png" alt="Actual paused recording with an audio bookmark" width="250"> | <img src="docs/screenshots/13-calendar.png" alt="Calendar with saved journal dates" width="250"> | <img src="docs/screenshots/17-suggestions.png" alt="New goals, tasks, and ideas awaiting approval" width="250"> |
 
 ## Make it yours
 
@@ -60,7 +60,7 @@ Enable **Settings → Privacy & lock → Fingerprint & screen lock** to show And
 - Stop using **Stop & save** in the persistent recording notification or on Today. Repeated widget taps while recording do not create another recording.
 - After updating, touch and hold an existing widget to resize it, or remove/re-add it to apply the smaller default footprint. Removing a widget does not delete journal entries. Launcher cell sizes vary; [Android widget sizing](https://developer.android.com/develop/ui/views/appwidgets/layouts) describes the requested defaults.
 
-Install this APK over 0.1.0, 0.2.0, 0.3.0, or 0.4.0 to retain existing notes and settings. It uses the same private signing key; no uninstall is needed.
+Install this APK over 0.1.0, 0.2.0, 0.3.0, 0.4.0, or 0.4.1 to retain existing notes and settings. It uses the same private signing key; no uninstall is needed.
 
 ## Build
 
@@ -121,7 +121,7 @@ Reminders follow three-hour slots from your chosen waking time, inside waking ho
 
 Android Doze, Samsung sleeping-app controls, force-stop, and network availability can delay work. Review notification and battery settings if check-ins are missing. This app intentionally uses approximate reminders without requesting exact-alarm permission.
 
-Use full encrypted backup/restore to preserve audio and photos. Markdown export is a readable text export with attachment identifiers, not a media backup. Keep your backup passphrase safe: it cannot be recovered. Android cloud backup and automatic device transfer are excluded.
+Use full encrypted backup/restore to preserve audio and photos. Automatic daily backups can write to a folder you select and retain seven successful copies. The backup passphrase is remembered with Android Keystore only after explicit consent and is excluded from exported backups. Disabling the schedule removes that saved secret. Markdown export is a readable text export with attachment identifiers, not a media backup. Keep your backup passphrase safe: it cannot be recovered. Android cloud backup and automatic device transfer are excluded.
 
 ## Source
 
@@ -130,4 +130,19 @@ Use full encrypted backup/restore to preserve audio and photos. Markdown export 
 - `local-llm`: isolated llama.cpp Android binding for local text reviews. Its native symbols are kept separate from whisper.cpp.
 - `vendor/whisper.cpp`: pinned upstream submodule, v1.8.7 / `48f628a84833905ee4a0658ee6d4a5c915ce1997`.
 
-Future additions: weekly reflections, optional mood/energy check-ins, and goal consistency trends.
+## Beta release additions
+
+- **Recently Deleted:** moving a note hides its audio/photos and source-linked reviews. Restore within 30 days or permanently delete from Settings → Backups & storage → Recently Deleted. Background maintenance removes expired trash when Android permits; confirmed goal counts remain.
+- **Automatic backups & recovery:** daily passphrase-encrypted backups to a user-selected document folder, last success/error status, seven-copy retention, and a manual Run now action. A cloud document provider may sync the encrypted files under its own terms.
+- **Weekly reflection:** History → Weekly reflection combines source notes, current daily summaries, confirmed goal/day check-ins, open items, and an editable personal reflection. This view makes no additional AI request.
+- **Processing & downloads:** see transcription/review status, retry or cancel, choose unmetered-only model downloads, or require charging for cleanup.
+- **Privacy policy & feedback:** read the local policy, inspect license notices, and share a feedback draft. Optional diagnostic details are visible before sharing and exclude journal content, keys, paths, and identifiers.
+- **Accessibility:** labeled full-row switches, larger minimum navigation/touch sizes, scalable system fonts, and a reduced-animation option.
+
+The backup manifest is version 2. This app restores versions 1 and 2. Older app versions reject a version-2 backup instead of silently dropping privacy, trash, timestamp, or reflection data.
+
+## Google Play preparation
+
+Build the signed bundle with `bash scripts/build.sh :app:bundleRelease`. The local beta supports personal APK installation; public publication still requires publisher details, a hosted privacy policy, real-device results, accurate Console declarations, and the applicable closed beta. See [publishing preparation](publishing/README.md). No store upload or external policy hosting happens automatically.
+
+Later additions: optional mood/energy check-ins, tags, and goal consistency trends.

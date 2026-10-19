@@ -7,8 +7,11 @@ import androidx.exifinterface.media.ExifInterface
 import dev.daybook.core.*
 import java.io.*
 import java.security.MessageDigest
+import kotlinx.coroutines.sync.withLock
 
 class MediaStore(private val context: Context) {
+    val operations = kotlinx.coroutines.sync.Mutex()
+    val restoreGate = kotlinx.coroutines.sync.Mutex()
     val directory = File(context.filesDir, "media").apply { mkdirs() }
     fun file(path: String): File {
         require(path.matches(Regex("media/[a-zA-Z0-9_-]+\\.(wav|jpg|jpeg|png|webp|heic)"))) { "Invalid media path." }
@@ -17,7 +20,7 @@ class MediaStore(private val context: Context) {
         return f
     }
     fun newPath(extension: String) = "media/${newId()}.$extension"
-    suspend fun importPhoto(uri: Uri, day: String, repo: JournalRepository) {
+    suspend fun importPhoto(uri: Uri, day: String, repo: JournalRepository) = restoreGate.withLock {
         val path = newPath("jpg"); val target = file(path)
         try {
             context.contentResolver.openInputStream(uri)?.use { input ->

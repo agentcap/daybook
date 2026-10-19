@@ -242,7 +242,7 @@ fun GoalsScreen(state: Snapshot, day: String, modifier: Modifier, onNew: () -> U
 }
 
 @Composable
-fun HistoryScreen(state: Snapshot, modifier: Modifier, onEntry: (String) -> Unit = {}, today: LocalDate = LocalDate.now(), onDay: (String) -> Unit) {
+fun HistoryScreen(state: Snapshot, modifier: Modifier, onEntry: (String) -> Unit = {}, today: LocalDate = LocalDate.now(), onWeekly: () -> Unit = {}, onDay: (String) -> Unit) {
     var query by remember { mutableStateOf("") }
     var view by remember { mutableStateOf("Journal") }
     val days = (state.entries.map { it.day } + state.activities.map { it.day } + state.reviews.map { it.day }).distinct().sortedDescending().filter { day ->
@@ -258,6 +258,7 @@ fun HistoryScreen(state: Snapshot, modifier: Modifier, onEntry: (String) -> Unit
     LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item {
             PageTitle("Your story", "Look back.", "Find a thought, a meal, or a moment.")
+            OutlinedButton(onClick = onWeekly) { Icon(Icons.Outlined.AutoAwesome, null); Spacer(Modifier.width(8.dp)); Text("Weekly reflection") }
             StreakSummary(state, today) { view = "Stats" }
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 listOf("Journal", "Calendar", "Stats").forEach { label -> FilterChip(view == label, { view = label }, label = { Text(label) }) }
@@ -276,9 +277,12 @@ fun HistoryScreen(state: Snapshot, modifier: Modifier, onEntry: (String) -> Unit
                     Text(LocalDate.parse(day).format(DateTimeFormatter.ofPattern("EEEE, MMM d, yyyy")), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     val count = state.entries.count { it.day == day }
                     Text("$count entries · ${JournalRules.workedOn(state, day)} goals worked on", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                    Text(state.reviews.filter { it.day == day }.maxByOrNull { it.created }?.summary
+                    val match = if (query.isNotBlank()) state.entries.firstOrNull { it.day == day && (it.text.contains(query, true) || it.originalText.contains(query, true)) } else null
+                    Text(match?.let { if (it.text.contains(query, true)) it.text else "Original: " + it.originalText }
+                        ?: state.reviews.filter { it.day == day }.maxByOrNull { it.created }?.summary
                         ?: state.entries.firstOrNull { it.day == day && it.text.isNotBlank() }?.text ?: "Photos, recordings, and progress.",
                         maxLines = 3, overflow = TextOverflow.Ellipsis)
+                    if (match != null) TextButton(onClick = { onEntry(match.id) }) { Text("Open matching note") }
                 }
             }
         }

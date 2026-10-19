@@ -1,0 +1,36 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Daybook Privacy Policy</title><style>body{max-width:52rem;margin:3rem auto;padding:0 1.5rem;font:17px/1.65 system-ui;color:#26212f;background:#faf8ff}pre{font:inherit;white-space:pre-wrap;overflow-wrap:anywhere}.draft{padding:1rem;background:#fff0c5}a{color:#6551c5}</style>
+<main><p class='draft'>DRAFT BETA POLICY — fill publisher details before hosting.</p><h1>Daybook Privacy Policy</h1><p>Developer: Publisher name pending<br>Contact: Publisher contact pending</p><pre>Daybook Privacy Policy
+Updated: October 19, 2026
+
+Daybook is a personal journal. It has no account system, advertising SDK, analytics SDK, or developer-operated journal server.
+
+ON YOUR PHONE
+Journal entries, audio, photos, transcripts, revisions, goals, activity, to-dos, ideas, weekly reflections, and review history are stored in private app storage. Android provides app isolation and device encryption. The database is not separately encrypted by Daybook. Optional app lock protects interactive access and blocks screenshots; configured background recording and cleanup can continue.
+
+LOCAL MODELS
+English speech transcription runs on-device with whisper.cpp. Optional on-device text reviews use Qwen 2.5 1.5B through llama.cpp. Models are downloaded from Hugging Face over HTTPS and verified before use. Model hosts and their delivery providers receive ordinary connection information, such as IP address, when downloading. Journal content is not included in model downloads. After download, local inference does not require a network or API key. Local reviews do not analyze photos.
+
+OPTIONAL OPENAI REVIEWS
+Only when you choose OpenAI and enable cloud consent, the app sends eligible current note text, selected attached photos, active goals, confirmed daily activity, and open to-do/idea titles directly to OpenAI using your own API key. Original audio is never included. ‘Keep this entry on-device’ excludes that entry and its photos from future OpenAI requests. Photo inclusion can be disabled separately. Derived activity and list context with private source references are excluded; independently entered goal/list titles remain context. Existing requests cannot be retracted.
+
+Manual cleanup previews this input. Automatic nightly cleanup uses your saved choices and cloud consent. Your API key is encrypted using Android Keystore and is not included in backups or diagnostics. Requests use store: false. This does not guarantee zero retention; OpenAI retention and abuse-monitoring rules may apply. See https://developers.openai.com/api/docs/guides/your-data.
+
+Generated reviews and suggestions are separate from original notes. Suggestions may be inaccurate. Goal progress, new goals, tasks, ideas, and calorie estimates require user confirmation.
+
+BACKUPS AND DELETION
+Android automatic backup and transfer are disabled. Optional full backups are encrypted with your passphrase and include original media, Recently Deleted, and weekly reflections. They exclude API credentials, downloaded models, and the saved automatic-backup passphrase. Automatic backups write to a folder you choose and keep the seven latest tracked successful backups. A cloud document provider may sync the encrypted files under its own terms.
+
+For automatic backups, you explicitly choose to remember the passphrase encrypted with Android Keystore. Disabling automatic backups removes that saved secret. Keep the passphrase separately; uninstalling or moving phones can make the local saved secret unavailable.
+
+Deleted notes and media are hidden in Recently Deleted for 30 days, then removed when background maintenance runs. You can restore or permanently delete earlier. Confirmed goal activity remains. Uninstalling removes the app&#x27;s local data. Exported files, user-created backups, cloud-provider copies, and data already transmitted to OpenAI are independent copies; deleting a note does not remove those copies.
+
+FEEDBACK
+Feedback is a user-reviewed draft shared only through an app you choose. Optional diagnostic details show app version, Android/device model, free space, and model readiness. The app does not automatically send logs, notes, audio, photos, API keys, paths, or device identifiers. Review your own feedback text before sharing.
+
+PERMISSIONS
+Microphone access is used for user-started recording, with a foreground notification and stop controls. Notifications support reminders and recording controls. Photos use Android&#x27;s picker or a user-invoked camera app. A selected backup folder uses Android&#x27;s document permission. Biometric/device credentials are handled by Android.
+
+CONTACT AND CHANGES
+The public release identifies the developer, support contact, and public policy link in Settings → Privacy policy &amp; feedback. Local beta builds without those configured values display their beta status. This policy will be updated when data handling changes.
+</pre></main></html>

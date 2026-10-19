@@ -25,13 +25,16 @@ import androidx.compose.ui.window.DialogProperties
 import dev.daybook.app.capture.RecordingSession
 
 @Composable fun RecordingScreen(session: RecordingSession, active: Boolean, modelReady: Boolean,
-    onStart: () -> Unit, onStop: () -> Unit, onDismiss: () -> Unit) {
+    onStart: () -> Unit, onStop: () -> Unit, onDismiss: () -> Unit, onPause: () -> Unit = {}, onBookmark: () -> Unit = {}, reduceMotion: Boolean = false) {
     val colors = MaterialTheme.colorScheme
     val scroll = rememberScrollState()
-    LaunchedEffect(session.transcript) { kotlinx.coroutines.delay(80); scroll.animateScrollTo(scroll.maxValue) }
-    val level by animateFloatAsState(if (session.phase == "recording") session.level else 0f, tween(140), label = "microphone level")
-    val pulse = rememberInfiniteTransition(label = "recording pulse")
-    val alpha by pulse.animateFloat(0.45f, 1f, infiniteRepeatable(tween(1000), RepeatMode.Reverse), label = "recording indicator")
+    LaunchedEffect(session.transcript) { kotlinx.coroutines.delay(80); if (reduceMotion) scroll.scrollTo(scroll.maxValue) else scroll.animateScrollTo(scroll.maxValue) }
+    val level by animateFloatAsState(if (session.phase == "recording") session.level else 0f, if (reduceMotion) snap() else tween(140), label = "microphone level")
+    val alpha = if (reduceMotion || !active || session.phase != "recording") 1f else {
+        val pulse = rememberInfiniteTransition(label = "recording pulse")
+        val value by pulse.animateFloat(0.45f, 1f, infiniteRepeatable(tween(1000), RepeatMode.Reverse), label = "recording indicator")
+        value
+    }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         val view = LocalView.current
         SideEffect {
@@ -54,8 +57,8 @@ import dev.daybook.app.capture.RecordingSession
                 }
                 SectionCard {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Box(Modifier.size(8.dp).alpha(if (active) alpha else 1f).background(if (active) colors.error else colors.primary, CircleShape))
-                        Text(when(session.phase) { "starting" -> "Starting…"; "saving" -> "Saving your audio…"; "saved" -> "Saved on this phone"; "error" -> "Needs attention"; else -> if (active) "Listening" else "Ready when you are" },
+                        Box(Modifier.size(8.dp).alpha(if (active && session.phase == "recording" && !reduceMotion) alpha else 1f).background(if (active) colors.error else colors.primary, CircleShape))
+                        Text(when(session.phase) { "starting" -> "Starting…"; "paused" -> "Paused"; "saving" -> "Saving your audio…"; "saved" -> "Saved on this phone"; "error" -> "Needs attention"; else -> if (active) "Listening" else "Ready when you are" },
                             Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
                         Text("%02d:%02d".format(session.elapsedMs / 60000, (session.elapsedMs / 1000) % 60), fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.titleLarge)
                     }
@@ -76,16 +79,25 @@ import dev.daybook.app.capture.RecordingSession
                     if (session.transcript.isNotBlank()) Text("· draft", style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
                 }
                 Surface(Modifier.weight(1f).fillMaxWidth(), shape = RoundedCornerShape(24.dp), color = colors.surface) {
-                    Column(Modifier.padding(20.dp).verticalScroll(scroll).animateContentSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(Modifier.padding(20.dp).verticalScroll(scroll).then(if (reduceMotion) Modifier else Modifier.animateContentSize()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         SelectionContainer {
                             Text(session.transcript.ifBlank { if (session.phase == "saved") "No live text was captured. Your audio is saved; open the note to retry or add text." else if (active && modelReady) "Your words will appear here as you speak…" else if (!modelReady) "Your audio is safe. Download the English model in Settings for live transcripts." else "Speak naturally. A small moment is enough." },
                                 style = MaterialTheme.typography.bodyLarge, color = if (session.transcript.isBlank()) colors.onSurfaceVariant else colors.onSurface)
                         }
                     }
                 }
-                Text(session.previewStatus, style = MaterialTheme.typography.bodySmall,
+                Text(if (session.phase == "paused") "Paused · resume when you are ready." else session.previewStatus, style = MaterialTheme.typography.bodySmall,
                     color = if (session.phase == "error") colors.error else colors.onSurfaceVariant)
                 if (active) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedButton(onClick = onPause, enabled = session.phase in setOf("recording", "paused"), modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
+                            Icon(if (session.phase == "paused") Icons.Outlined.PlayArrow else Icons.Outlined.Pause, null)
+                            Spacer(Modifier.width(6.dp)); Text(if (session.phase == "paused") "Resume" else "Pause")
+                        }
+                        OutlinedButton(onClick = onBookmark, enabled = session.phase in setOf("recording", "paused"), modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
+                            Icon(Icons.Outlined.BookmarkAdd, null); Spacer(Modifier.width(6.dp)); Text("Mark · ${session.bookmarks}")
+                        }
+                    }
                     Button(onClick = onStop, enabled = session.phase !in setOf("starting", "saving"), modifier = Modifier.fillMaxWidth().height(54.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = colors.errorContainer, contentColor = colors.onErrorContainer)) {
                         Icon(Icons.Outlined.StopCircle, null); Spacer(Modifier.width(10.dp)); Text("Stop & save recording")

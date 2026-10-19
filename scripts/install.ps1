@@ -1,7 +1,7 @@
 param([string]$DeviceSerial)
 $ErrorActionPreference = "Stop"
 $taskRoot = Split-Path -Parent $PSScriptRoot
-$apkPath = Join-Path $taskRoot "releases\daybook-0.4.1.apk"
+$apkPath = Join-Path $taskRoot "releases\daybook-0.5.0-beta.1.apk"
 if (-not (Test-Path -LiteralPath $apkPath)) { $apkPath = Join-Path $taskRoot "app\build\outputs\apk\release\app-release.apk" }
 if (-not (Test-Path -LiteralPath $apkPath)) { throw "Build Daybook first; a signed personal APK was not found." }
 $adbPath = Join-Path $taskRoot ".tools\android\windows\platform-tools\adb.exe"

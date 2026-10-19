@@ -16,3 +16,4 @@
 **/__pycache__/
 *.gguf
 ggml-*.bin
+/publishing/release.properties

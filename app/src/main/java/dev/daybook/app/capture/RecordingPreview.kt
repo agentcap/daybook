@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.math.sqrt
 
 data class RecordingSession(val entryId: String = "", val elapsedMs: Long = 0, val level: Float = 0f,
-    val transcript: String = "", val previewStatus: String = "Preparing your microphone…", val phase: String = "ready")
+    val bookmarks: Int = 0, val transcript: String = "", val previewStatus: String = "Preparing your microphone…", val phase: String = "ready")
 
 /** Audio capture never waits for inference. At most one pending six-second window is retained. */
 class RecordingPreview(private val graph: AppGraph, private val entryId: String, scope: CoroutineScope,

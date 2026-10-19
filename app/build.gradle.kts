@@ -1,8 +1,14 @@
+import java.util.Properties
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
 }
+val publicRelease = Properties().apply {
+    val source = rootProject.file("publishing/release.properties")
+    if (source.isFile) source.reader(Charsets.UTF_8).use { load(it) }
+}
+fun publicValue(name: String): String = publicRelease.getProperty(name, "").replace("\\", "\\\\").replace("\"", "\\\"")
 android {
     namespace = "dev.daybook.app"
     compileSdk = 37
@@ -11,8 +17,11 @@ android {
         applicationId = "dev.daybook.app"
         minSdk = 31
         targetSdk = 37
-        versionCode = 5
-        versionName = "0.4.1"
+        versionCode = 6
+        versionName = "0.5.0-beta.1"
+        buildConfigField("String", "DEVELOPER_NAME", "\"${publicValue("developerName")}\"")
+        buildConfigField("String", "SUPPORT_EMAIL", "\"${publicValue("supportEmail")}\"")
+        buildConfigField("String", "PRIVACY_POLICY_URL", "\"${publicValue("privacyPolicyUrl")}\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
         externalNativeBuild { cmake { arguments += listOf("-DCMAKE_BUILD_TYPE=Release", "-DGGML_NATIVE=OFF") } }

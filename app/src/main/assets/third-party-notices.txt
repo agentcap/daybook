@@ -1,0 +1,10 @@
+Daybook third-party software notices
+
+whisper.cpp v1.8.7 and its ggml runtime: MIT. Full notices: whisper.cpp-LICENSE.txt and whisper-ggml-LICENSE.txt.
+llama.cpp b11724 and its ggml runtime: MIT. Full notices: llama.cpp-LICENSE.txt and llama-ggml-LICENSE.txt (where supplied upstream).
+Kotlin, kotlinx.coroutines, Jetpack/AndroidX, Gson, OkHttp/Okio: Apache License 2.0. A copy is included as Apache-2.0.txt. These notices apply to those libraries, not a license grant for Daybook's own source.
+Speech weights: ggml base.en from the pinned whisper.cpp model repository.
+Optional local-review weights: Qwen2.5-1.5B-Instruct Q4_K_M, Apache 2.0, downloaded separately from the official Qwen repository. https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF
+Native Android C++ runtime notices: see the Android NDK distribution and its packaged notice file when supplied.
+
+Pinned source revisions and model checksums are recorded in the repository. Models and development test audio are not bundled in the release.

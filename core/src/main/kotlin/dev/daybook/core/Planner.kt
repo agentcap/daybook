@@ -27,7 +27,7 @@ object PlannerRules {
         require(item.sources.isNotEmpty() && item.sources.distinct().size == item.sources.size)
         JournalRules.validateGoal(Goal(title = item.title, period = item.period, target = item.target, unit = item.unit, checklist = item.checklist))
     }
-    fun current(state: Snapshot, proposal: Proposal) = proposal.item.sources.all { id -> state.entries.any { it.id == id && it.day == proposal.day } } &&
+    fun current(state: Snapshot, proposal: Proposal) = proposal.item.sources.all { id -> state.entries.any { it.id == id && it.day == proposal.day && it.deletedAt == 0L } } &&
         proposal.sourceFingerprint == sourceFingerprint(state, proposal.item.sources)
     fun alreadyExists(state: Snapshot, item: ProposedItem) = if (item.kind == "goal")
         state.goals.any { !it.archived && normalized(it.title) == normalized(item.title) }
@@ -76,7 +76,7 @@ object PlannerRules {
 
 data class JournalStats(val notes: Int, val journalDays: Int, val photos: Int, val currentStreak: Int, val longestStreak: Int)
 object StatsRules {
-    fun days(state: Snapshot, today: LocalDate) = state.entries.filter { it.status != "recording" }.map { LocalDate.parse(it.day) }.filter { it <= today }.toSet()
+    fun days(state: Snapshot, today: LocalDate) = state.entries.filter { it.status != "recording" && it.deletedAt == 0L }.map { LocalDate.parse(it.day) }.filter { it <= today }.toSet()
     fun calculate(state: Snapshot, today: LocalDate = LocalDate.now()): JournalStats {
         val days = days(state, today)
         var cursor = if (today in days) today else today.minusDays(1)
@@ -84,7 +84,7 @@ object StatsRules {
         while (cursor in days) { current++; cursor = cursor.minusDays(1) }
         var best = 0; var run = 0; var previous: LocalDate? = null
         days.sorted().forEach { d -> run = if (previous?.plusDays(1) == d) run + 1 else 1; best = maxOf(best, run); previous = d }
-        return JournalStats(state.entries.count { it.status != "recording" && LocalDate.parse(it.day) <= today }, days.size,
-            state.attachments.count { it.kind == "photo" && state.entries.any { e -> e.id == it.entryId && LocalDate.parse(e.day) <= today } }, current, best)
+        return JournalStats(state.entries.count { it.status != "recording" && it.deletedAt == 0L && LocalDate.parse(it.day) <= today }, days.size,
+            state.attachments.count { it.kind == "photo" && state.entries.any { e -> e.id == it.entryId && e.deletedAt == 0L && LocalDate.parse(e.day) <= today } }, current, best)
     }
 }

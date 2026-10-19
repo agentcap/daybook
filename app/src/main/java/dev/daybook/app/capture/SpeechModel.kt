@@ -14,8 +14,8 @@ import java.util.concurrent.TimeUnit
 class SpeechModel(private val context: Context) {
     val file = File(context.filesDir, "models/ggml-base.en.bin")
     fun ready() = file.isFile && file.length() == SIZE && File(file.parentFile, "verified").readTextOrEmpty() == SHA
-    fun download() {
-        val constraints = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).setRequiresStorageNotLow(true).build()
+    fun download(wifiOnly: Boolean = context.daybook.settings.value.wifiOnlyDownloads) {
+        val constraints = Constraints.Builder().setRequiredNetworkType(if (wifiOnly) NetworkType.UNMETERED else NetworkType.CONNECTED).setRequiresStorageNotLow(true).build()
         WorkManager.getInstance(context).enqueueUniqueWork("speech-model", ExistingWorkPolicy.KEEP,
             OneTimeWorkRequestBuilder<ModelDownloadWorker>().setConstraints(constraints)
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS).build())

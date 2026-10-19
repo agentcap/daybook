@@ -9,26 +9,27 @@ import java.util.Base64
 import java.util.concurrent.TimeUnit
 
 class CleanupJobs(private val context: Context) {
-    fun request(day: String, force: Boolean, provider: String): OneTimeWorkRequest {
+    fun request(day: String, force: Boolean, provider: String, charging: Boolean = context.daybook.settings.value.cleanupChargingOnly): OneTimeWorkRequest {
         LocalDate.parse(day); require(provider in setOf("local", "openai"))
         return OneTimeWorkRequestBuilder<CleanupWorker>()
             .setInputData(workDataOf("day" to day, "force" to force, "provider" to provider))
             .addTag("cleanup-review").addTag("cleanup-day:$day")
-            .setConstraints(Constraints.Builder().setRequiredNetworkType(if (ReviewPolicy.needsNetwork(provider)) NetworkType.CONNECTED else NetworkType.NOT_REQUIRED).setRequiresStorageNotLow(true).build())
+            .setConstraints(Constraints.Builder().setRequiredNetworkType(if (ReviewPolicy.needsNetwork(provider)) NetworkType.CONNECTED else NetworkType.NOT_REQUIRED).setRequiresStorageNotLow(true).setRequiresCharging(charging).build())
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS).build()
     }
-    fun enqueue(day: String, force: Boolean = false, provider: String = context.daybook.settings.value.reviewProvider, replace: Boolean = false) {
-        WorkManager.getInstance(context).enqueueUniqueWork("cleanup-$day", if (replace) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP, request(day, force, provider))
+    fun enqueue(day: String, force: Boolean = false, provider: String = context.daybook.settings.value.reviewProvider, replace: Boolean = false, charging: Boolean = context.daybook.settings.value.cleanupChargingOnly) {
+        WorkManager.getInstance(context).enqueueUniqueWork("cleanup-$day", if (replace) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP, request(day, force, provider, charging))
     }
     suspend fun reconfigure(provider: String) = withContext(Dispatchers.IO) {
         val work = WorkManager.getInstance(context)
+        val charging = context.daybook.preferences.read().cleanupChargingOnly
         val tagged = work.getWorkInfosByTag("cleanup-review").get(10, TimeUnit.SECONDS)
             .filter { !it.state.isFinished }.flatMap { it.tags }.filter { it.startsWith("cleanup-day:") }.map { it.substringAfter(':') }
         // Include pre-0.4 jobs, which were not tagged and always required a network.
         val days = (tagged + context.daybook.repository.read().entries.map { it.day }).distinct()
         days.forEach { day ->
             if (work.getWorkInfosForUniqueWork("cleanup-$day").get(10, TimeUnit.SECONDS).any { !it.state.isFinished })
-                enqueue(day, force = true, provider = provider, replace = true)
+                enqueue(day, force = true, provider = provider, replace = true, charging = charging)
         }
     }
 }
@@ -42,8 +43,11 @@ class CleanupWorker(context: Context, params: WorkerParameters) : CoroutineWorke
             require(ReviewPolicy.allowed(settings)) { "Enable OpenAI reviews in Settings, or choose on-device cleanup." }
             val modelName = if (settings.reviewProvider == "local") LocalReviewProtocol.MODEL_NAME else settings.model
             val state = graph.repository.read()
-            val entries = state.entries.filter { it.day == day }.sortedBy { it.created }
-            if (entries.isEmpty()) return@withContext Result.success()
+            val entries = ReviewPrivacy.entries(state, day, settings.reviewProvider)
+            if (entries.isEmpty()) {
+                require(state.entries.none { it.day == day && it.deletedAt == 0L }) { "These notes are kept on-device. Choose on-device cleanup or change their privacy settings." }
+                return@withContext Result.success()
+            }
             if (entries.any { it.status in setOf("recording", "pending") }) {
                 if (runAttemptCount < 4) return@withContext Result.retry()
                 error("Some voice notes are still waiting for transcription. Finish them, then clean up this day.")
@@ -54,10 +58,11 @@ class CleanupWorker(context: Context, params: WorkerParameters) : CoroutineWorke
             val fingerprint = JournalRules.fingerprint(state, day)
             if (!inputData.getBoolean("force", false) && state.reviews.any { it.day == day && it.fingerprint == fingerprint && it.provider == settings.reviewProvider && it.model == modelName }) return@withContext Result.success()
             val ids = entries.map { it.id }.toSet()
-            val photos = if (settings.reviewProvider == "local") emptyList() else state.attachments.filter { it.entryId in ids && it.kind == "photo" }.map {
+            val photos = if (settings.reviewProvider == "local") emptyList() else ReviewPrivacy.photos(state, day).map {
                 ReviewPhoto(it.id, it.entryId, Base64.getEncoder().encodeToString(graph.media.uploadPhoto(it)))
             }
-            val input = ReviewInput(day, entries, state.goals.filter { !it.archived }, photos, state.activities.filter { it.day == day && !it.undone }, state.items.filter { !it.done && !it.archived })
+            val context = if (settings.reviewProvider == "openai") ReviewPrivacy.cloudContext(state) else state
+            val input = ReviewInput(day, entries, context.goals.filter { !it.archived }, photos, context.activities.filter { it.day == day && !it.undone }, context.items.filter { !it.done && !it.archived })
             setProgress(workDataOf("message" to if (settings.reviewProvider == "local") "Cleaning up on this phone. Larger days can take a few minutes…" else "Cleaning up with OpenAI…"))
             ensureActive()
             val beforeGeneration = graph.preferences.read()

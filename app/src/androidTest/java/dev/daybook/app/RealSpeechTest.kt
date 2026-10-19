@@ -77,4 +77,33 @@ class RealSpeechTest {
         } finally { shell("cmd connectivity airplane-mode disable"); shell("svc wifi enable"); shell("svc data enable") }
     }
 
+
+    @Test fun d_timestampedTranscriptSupportsSeekingOffline() = runBlocking {
+        val graph=context.daybook; graph.initialized.await(); assertTrue(graph.model.ready())
+        val file=graph.media.file(graph.media.newPath("wav"))
+        val fixture = instrumentation.context.assets.open("jfk.wav").use { it.readBytes() }
+        java.io.RandomAccessFile(file,"rw").use { wav ->
+            Wav.header(wav, (fixture.size - 44 + 32000 * 30).toLong())
+            wav.seek(44); wav.write(ByteArray(32000 * 30)); wav.write(fixture,44,fixture.size-44)
+        }
+        try {
+            val segments=WhisperEngine.timeline(graph.model.file,file)
+            assertTrue(segments.joinToString(" ") { it.text }.contains("country",ignoreCase=true))
+            val duration=(file.length()-44)*1000/32000
+            assertTrue(segments.all { it.ms>=0 && it.endMs>=it.ms && it.endMs<=duration+1000 })
+            assertTrue(segments.zipWithNext().all { (a,b) -> a.ms<=b.ms })
+            assertTrue("Speech after a silent 30-second window must keep its audio offset.", segments.all { it.ms>=30000 })
+        } finally { file.delete() }
+    }
+    @Test fun e_timestampedInferenceCanBeCancelledAndRuntimeReused() = runBlocking {
+        val graph=context.daybook; graph.initialized.await(); assertTrue(graph.model.ready())
+        val file=graph.media.file(graph.media.newPath("wav"))
+        instrumentation.context.assets.open("jfk.wav").use { input -> file.outputStream().use { input.copyTo(it) } }
+        try {
+            val pending=launch(Dispatchers.IO) { WhisperEngine.timeline(graph.model.file,file) }
+            delay(100); pending.cancelAndJoin()
+            assertTrue(pending.isCancelled)
+            assertTrue(WhisperEngine.timeline(graph.model.file,file).isNotEmpty())
+        } finally { file.delete() }
+    }
 }

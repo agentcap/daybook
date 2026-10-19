@@ -1,7 +1,11 @@
-# Personal installation artifact
+# Daybook beta artifacts
 
-`daybook-0.4.1.apk` is copied here after successful build and verification. APK binaries are local artifacts and are ignored by Git; source and the checksum record are committed.
+`daybook-0.5.0-beta.1.apk` is the signed, non-debuggable installable Android beta. `daybook-0.5.0-beta.1.aab` is the signed Google Play upload bundle; an AAB is not directly installable. Both include ARM64 and x86-64 native libraries. Binaries remain local and ignored by Git; the source and SHA256SUMS record are committed.
 
-This is a signed, non-debuggable personal APK for personal installation, with ARM64 and x86-64 native libraries. Keep the signing key at `.tools/signing/daybook.jks` and `.tools/signing/keystore.pass` on the original build machine for future updates. Changing the signing key requires uninstalling the old app, which removes its journal unless you export a full encrypted backup first.
+Install the APK over an earlier signed personal version to preserve data. Keep the signing key at `.tools/signing/daybook.jks` and its password file on the build machine for updates. Changing signing identity requires uninstalling the existing app; export a full encrypted backup first.
 
-The app downloads its speech model separately. Settings offers OpenAI reviews with your own API key, or text-only on-device reviews after a separate 1.1 GB model download. See [on-device setup](../docs/local-model.md).
+Models download separately. Speech needs about 141 MB; optional text-only local reviews need about 1.1 GB. OpenAI reviews require your own API key and explicit cloud consent.
+
+New beta features include daily encrypted folder backups, 30-day Recently Deleted, recording pause/resume and audio bookmarks, timestamped transcript playback, weekly reflections, private-note/photo controls, cloud previews, processing retries and reduced animations. See [verification](../docs/verification.md), [setup](../README.md) and [publishing requirements](../publishing/README.md).
+
+This is not yet a public store release. Developer contact details, a hosted final privacy policy, physical Galaxy testing and applicable Play Console testing/declarations remain outstanding.

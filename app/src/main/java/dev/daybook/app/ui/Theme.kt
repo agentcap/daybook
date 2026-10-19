@@ -1,7 +1,7 @@
 package dev.daybook.app.ui
 
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.font.FontFamily
@@ -26,8 +26,11 @@ private val Dark = darkColorScheme(
     onSurfaceVariant = Color(0xFFBEB5CE), surfaceVariant = Color(0xFF393242),
     surfaceContainer = Color(0xFF2E283B), outline = Color(0xFF91879E), outlineVariant = Color(0xFF443C50))
 
-@Composable fun DaybookTheme(dark: Boolean, content: @Composable () -> Unit) {
+val LocalReduceMotion = staticCompositionLocalOf { false }
+
+@Composable fun DaybookTheme(dark: Boolean, reduceMotion: Boolean = false, content: @Composable () -> Unit) {
     val base = Typography()
+    CompositionLocalProvider(LocalReduceMotion provides reduceMotion) {
     MaterialTheme(colorScheme = if (dark) Dark else Light,
         typography = base.copy(
             headlineLarge = base.headlineLarge.copy(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold, fontSize = 27.sp, lineHeight = 32.sp, letterSpacing = (-0.7).sp),
@@ -41,4 +44,5 @@ private val Dark = darkColorScheme(
             bodyLarge = base.bodyLarge.copy(fontSize = 14.sp, lineHeight = 22.sp)),
         shapes = Shapes(small = RoundedCornerShape(14.dp), medium = RoundedCornerShape(20.dp), large = RoundedCornerShape(28.dp)),
         content = content)
+}
 }

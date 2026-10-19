@@ -105,7 +105,7 @@ class NightlyDispatchWorker(context: Context, params: WorkerParameters) : Corout
         val s = graph.preferences.read()
         if (s.onboarded && s.autoCleanup && ReviewPolicy.allowed(s)) {
             val day = inputData.getString("day") ?: LocalDate.now().toString()
-            graph.cleanup.enqueue(day, provider = s.reviewProvider)
+            graph.cleanup.enqueue(day, provider = s.reviewProvider, charging = s.cleanupChargingOnly)
         }
         // Enqueue the next date without cancelling this dispatch or the independent cleanup request.
         graph.scheduler.scheduleNextCleanup()

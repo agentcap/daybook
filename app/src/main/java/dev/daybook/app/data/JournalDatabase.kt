@@ -56,6 +56,7 @@ class JournalRepository(private val db: JournalDatabase) : JournalStorage {
     }
     suspend fun editEntry(id: String, text: String) = change { s ->
         val old = s.entries.first { it.id == id }
+        require(old.deletedAt == 0L) { "Restore this note before editing." }
         require(old.status != "recording") { "Stop recording before editing." }
         s.copy(entries = s.entries.map { if (it.id == id) it.copy(text = text, status = if (it.kind == "voice" && text.isNotBlank()) "ready" else it.status, error = if (text.isNotBlank()) "" else it.error) else it },
             revisions = s.revisions + Revision(entryId = id, text = old.text))
@@ -78,6 +79,8 @@ class JournalRepository(private val db: JournalDatabase) : JournalStorage {
     suspend fun approveProposal(id: String, title: String, details: String, goal: Goal? = null) = change { PlannerRules.approve(it, id, title, details, goal) }
     suspend fun undoProposal(id: String) = change { PlannerRules.undo(it, id) }
     suspend fun archive(id: String) = change { s -> s.copy(goals = s.goals.map { if (it.id == id) it.copy(archived = true) else it }) }
+    suspend fun trash(id: String) = change { RecoveryRules.trash(it, id) }
+    suspend fun restoreEntry(id: String) = change { RecoveryRules.restore(it, id) }
     suspend fun deleteEntry(id: String): List<Attachment> {
         var removed = emptyList<Attachment>()
         change { s ->
@@ -96,8 +99,9 @@ class JournalRepository(private val db: JournalDatabase) : JournalStorage {
     }
     private inline fun <reified T> List<DocumentRow>.of(kind: String): List<T> = filter { it.kind == kind }.map { gson.fromJson(it.json, T::class.java) }
     private fun decode(rows: List<DocumentRow>) = Snapshot(rows.of("entry"), rows.of("revision"), rows.of("attachment"),
-        rows.of("goal"), rows.of("activity"), rows.of("review"), rows.of("suggestion"), rows.of("list_item"), rows.of("proposal"))
+        rows.of("goal"), rows.of("activity"), rows.of("review"), rows.of("suggestion"), rows.of("list_item"), rows.of("proposal"), rows.of("week_reflection"))
     private fun encode(s: Snapshot): List<DocumentRow> = buildList {
+        s.reflections.forEach { add(DocumentRow(it.id, "week_reflection", it.week, gson.toJson(it))) }
         s.entries.forEach { add(DocumentRow(it.id, "entry", it.day, gson.toJson(it))) }
         s.revisions.forEach { add(DocumentRow(it.id, "revision", "", gson.toJson(it))) }
         s.attachments.forEach { add(DocumentRow(it.id, "attachment", "", gson.toJson(it))) }

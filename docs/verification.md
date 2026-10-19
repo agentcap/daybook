@@ -1,6 +1,52 @@
 # Verification
 
-Current release: 0.4.1. Earlier release results are retained below for context.
+Current release: **0.5.0-beta.1**. Earlier release results are retained below for context.
+
+## 0.5.0 beta publishing and recovery verification
+
+Completed on 2026-10-19 in the isolated Android 16/API 36 x86-64 emulator. This is a locally installable beta, not a public store submission.
+
+| Check | Actual result |
+| --- | --- |
+| JVM tests | 47 passed: rules, backward-compatible data defaults, recovery, privacy selection, archive integrity, HTTP, and authentication lifecycle |
+| Regular Android workflows | 26 passed; runner reports 39 including 13 skipped opt-in cases |
+| Final interface regression | All 5 release workflows passed again after final UI polish: pause/bookmark/resume, trash/restore, weekly reflection, private cloud preview and diagnostics, accessible privacy switches |
+| Real offline speech | All 5 opt-in cases passed, including checksum-verified base.en, reusable live previews, timestamped audio after a 30-second silent window, cancellation and runtime reuse |
+| Real on-device reviews | All 4 opt-in cases passed with actual Qwen inference in airplane mode; confirmation and original preservation checked; Whisper also works after local inference |
+| Automatic encrypted backup | Real DocumentsUI folder grant; audio, photo, trash, privacy flags, bookmarks, segments and weekly reflection restored successfully; wrong password left existing data unchanged |
+| Backup failure and retention | Seven latest tracked backups retained; latest copy decrypts; missing saved passphrase fails while preserving last-success state and previous copies |
+| Large journal | 1,000 synthetic entries persisted and observed in 276 ms on this emulator; specific-note search, source opening, and weekly reflection passed |
+| Visual checks | Final screenshot tour passed; weekly, backup, processing, privacy and feedback screens inspected; actual recording controls checked at 200% system text size |
+| Android lint and builds | 0 errors, 40 warnings; unit tests, verification APK/test APK, signed release APK and signed AAB builds passed |
+| Upgrade installation | Final signed beta installed over personal 0.4.1 and cold-launched successfully; version checked |
+| Package integrity | APK signature and AAB signature verified; official bundletool validation passed; non-debuggable, automatic Android backup disabled |
+| Native compatibility | Both ARM64 and x86-64; APK 16 KiB ZIP alignment and every native ELF load segment in both packages checked |
+| Packaged privacy | Privacy policy and native/library notices included; no downloaded models, backup archives or signing credentials packaged |
+
+The last five-workflow run took 13.635 seconds; the final screenshot tour took 22.099 seconds. Real speech cases took 51.533 seconds in total, local-model cases 56.678 seconds, and the actual automatic-backup test 19.344 seconds. These small synthetic fixtures are development checks, not Galaxy performance claims. No live OpenAI request was made.
+
+At 200% font size, capture, pause/resume, bookmark and stop controls remained usable. Long bottom-navigation labels use ellipses while retaining their full accessibility labels. TalkBack, landscape, physical audio routing, fingerprint hardware, thermal behavior and Samsung scheduling still need the [device beta protocol](../publishing/device-testing.md). Folder revocation, interrupted writes and cloud document providers remain device/provider checks; the emulator automatic-backup failure case removed its saved secret.
+
+Original audio and photos remain preserved. Soft deletion hides notes and associated reviews while keeping recovery data for 30 days; background maintenance timing depends on Android. Encrypted backups use manifest version 2 to preserve the added metadata and reject imports by older apps.
+
+Current artifacts:
+
+- APK: `releases/daybook-0.5.0-beta.1.apk`, 67,012,363 bytes; SHA-256 `284a302f1831096428d9bb6c9490b3e05f6517bee2a31aea0780f33e9b6e4ac4`.
+- AAB: `releases/daybook-0.5.0-beta.1.aab`, 27,626,151 bytes; SHA-256 `b024b167bf098bd1f74cb2c9d9019ca79d92e6df8f7434d6036d9be40a8ef4da`.
+- Signing certificate SHA-256: `b573b6ab7c5556efbbaf253b61db2d3d8e8fb3ba2db9519a883f042070d3b87f`.
+
+The release keeps the personal signing identity. Play enrollment and package-name availability have not been checked. Public developer name, support email and hosted privacy policy are pending. The publishing checker deliberately reports NOT READY until metadata and a final policy site are supplied; phone and Play Console requirements must also be completed.
+
+Repeat the actual automatic-backup test only after configuring a folder and synthetic passphrase through the **verification app's** Backups & recovery screen on a disposable emulator:
+
+```sh
+adb -e shell am instrument -w -e realBackup true \
+  -e class dev.daybook.app.RealBackupTest \
+  dev.daybook.app.verification.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+The test replaces verification data and disables its automatic-backup setup afterwards. Real speech, local-model and screenshot tests remain opt-in. Local logs live under ignored `verification/`; screenshots contain synthetic content. The actual recording screenshot contains emulator audio with no detected speech; the separate recording preview fixture is kept only in ignored test output.
+
 
 ## 0.4.1 compact dark widget verification
 

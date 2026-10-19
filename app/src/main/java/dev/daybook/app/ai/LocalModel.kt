@@ -21,10 +21,10 @@ class LocalModel(private val context: Context) {
     internal val files = Mutex()
     fun ready() = runCatching { file.isFile && file.length() == SIZE && marker.isFile && marker.readText() == SHA }.getOrDefault(false)
     fun usage() = directory.listFiles()?.sumOf { it.length() } ?: 0L
-    fun download() {
+    fun download(wifiOnly: Boolean = context.daybook.settings.value.wifiOnlyDownloads) {
         WorkManager.getInstance(context).enqueueUniqueWork(WORK, ExistingWorkPolicy.KEEP,
             OneTimeWorkRequestBuilder<LocalModelDownloadWorker>()
-                .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).setRequiresStorageNotLow(true).build())
+                .setConstraints(Constraints.Builder().setRequiredNetworkType(if (wifiOnly) NetworkType.UNMETERED else NetworkType.CONNECTED).setRequiresStorageNotLow(true).build())
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS).build())
     }
     fun pause() = WorkManager.getInstance(context).cancelUniqueWork(WORK)

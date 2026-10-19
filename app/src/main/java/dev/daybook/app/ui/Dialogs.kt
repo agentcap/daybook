@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.dp
 import dev.daybook.app.AppGraph
 import dev.daybook.core.*
 import java.time.*
+import kotlinx.coroutines.launch
 
 @Composable fun WriteDialog(onDismiss: () -> Unit, onSave: (String) -> Unit) {
     var text by remember { mutableStateOf("") }
@@ -28,6 +29,30 @@ fun EntryDialog(entry: Entry, state: Snapshot, graph: AppGraph, onDismiss: () ->
     var showOriginal by remember { mutableStateOf(false) }
     var player by remember { mutableStateOf<MediaPlayer?>(null) }
     var playbackError by remember { mutableStateOf("") }
+    var showTimeline by remember { mutableStateOf(false) }
+    var privacyError by remember { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
+    fun privacy(local: Boolean, photos: Boolean) {
+        scope.launch {
+            try { graph.repository.change { state -> state.copy(entries = state.entries.map { if (it.id == entry.id) it.copy(keepLocal = local, includePhotosInCloud = photos) else it }) } }
+            catch (_: Exception) { privacyError = "Could not save this choice. Please retry." }
+        }
+    }
+    fun playAt(ms: Long) {
+        player?.release(); player = null; playbackError = ""
+        try {
+            val attachment = state.attachments.first { it.entryId == entry.id && it.kind == "audio" }
+            val file = graph.media.file(attachment.path)
+            dev.daybook.app.capture.Wav.repair(file)
+            player = MediaPlayer().apply {
+                setDataSource(file.path)
+                setOnPreparedListener { it.seekTo(ms, MediaPlayer.SEEK_CLOSEST); it.start() }
+                setOnCompletionListener { it.release(); player = null }
+                setOnErrorListener { p, _, _ -> p.release(); player = null; playbackError = "This recording cannot be played yet."; true }
+                prepareAsync()
+            }
+        } catch (_: Exception) { player?.release(); player = null; playbackError = "The saved recording could not be opened." }
+    }
     DisposableEffect(entry.id) { onDispose { player?.release() } }
     AlertDialog(onDismissRequest = onDismiss, title = { Text("Your original moment") }, text = {
         Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -37,20 +62,34 @@ fun EntryDialog(entry: Entry, state: Snapshot, graph: AppGraph, onDismiss: () ->
             }
             state.attachments.firstOrNull { it.entryId == entry.id && it.kind == "audio" }?.let { attachment ->
                 OutlinedButton(onClick = {
-                    if (player != null) { player?.release(); player = null }
-                    else try {
-                        val file = graph.media.file(attachment.path)
-                        if (entry.status != "recording") dev.daybook.app.capture.Wav.repair(file)
-                        player = MediaPlayer().apply {
-                            setDataSource(file.path)
-                            setOnPreparedListener { it.start() }
-                            setOnCompletionListener { it.release(); player = null }
-                            setOnErrorListener { p, _, _ -> p.release(); player = null; playbackError = "This recording cannot be played yet."; true }
-                            prepareAsync()
-                        }
-                    } catch (_: Exception) { player?.release(); player = null; playbackError = "The saved recording could not be opened." }
+                    if (player != null) { player?.release(); player = null } else playAt(0)
                 }, enabled = entry.status != "recording") { Text(if (player == null) "Play original audio" else "Stop playback") }
             }
+            if (entry.bookmarks.isNotEmpty()) {
+                Text("Audio bookmarks", style = MaterialTheme.typography.titleSmall)
+                entry.bookmarks.forEach { mark ->
+                    TextButton(onClick = { playAt(mark.ms) }, enabled = entry.status != "recording") {
+                        Text("%02d:%02d · %s".format(mark.ms / 60000, mark.ms / 1000 % 60, mark.label))
+                    }
+                }
+            }
+            if (entry.segments.isNotEmpty()) {
+                TextButton(onClick = { showTimeline = !showTimeline }) { Text(if (showTimeline) "Hide transcript timeline" else "Transcript timeline") }
+                if (showTimeline) {
+                    Text("Tap an original transcript segment to play its audio. Segment times are approximate; edited note text stays separate.", style = MaterialTheme.typography.bodySmall)
+                    entry.segments.forEach { segment ->
+                        TextButton(onClick = { playAt(segment.ms) }, modifier = Modifier.fillMaxWidth()) {
+                            Text("%02d:%02d · %s".format(segment.ms / 60000, segment.ms / 1000 % 60, segment.text))
+                        }
+                    }
+                }
+            }
+            HorizontalDivider()
+            ToggleRow("Keep this entry on-device", "Excluded from OpenAI reviews, including its photos. Local reviews and encrypted backups can still include it.",
+                entry.keepLocal, { privacy(it, entry.includePhotosInCloud) })
+            if (!entry.keepLocal && state.attachments.any { it.entryId == entry.id && it.kind == "photo" })
+                ToggleRow("Include photos in cloud reviews", "Your caption can still be used when photos are excluded.", entry.includePhotosInCloud, { privacy(false, it) })
+            if (privacyError.isNotBlank()) Text(privacyError, color = MaterialTheme.colorScheme.error)
             if (playbackError.isNotBlank()) Text(playbackError, color = MaterialTheme.colorScheme.error)
             if (entry.error.isNotBlank()) Text(entry.error, color = MaterialTheme.colorScheme.error)
             if (entry.kind == "voice" && entry.status in setOf("error", "interrupted", "pending")) OutlinedButton(onClick = onRetry) { Text("Retry offline transcription") }
@@ -66,13 +105,13 @@ fun EntryDialog(entry: Entry, state: Snapshot, graph: AppGraph, onDismiss: () ->
                     SelectionContainer { Text(it.text.ifBlank { "(Empty caption)" }) }
                 }
             }
-            TextButton(onClick = { delete = true }, enabled = entry.status != "recording", colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("Delete note and its media") }
+            TextButton(onClick = { delete = true }, enabled = entry.status != "recording", colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("Move note to Recently Deleted") }
         }
     }, confirmButton = { Button(onClick = { onSave(text) }, enabled = text != entry.text && entry.status != "recording") { Text("Save changes") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } })
-    if (delete) AlertDialog(onDismissRequest = { delete = false }, title = { Text("Delete this moment?") },
-        text = { Text("This removes the note, its original audio/photos, and generated reviews for this day. Confirmed goal activity remains, with this source link removed.") },
-        confirmButton = { Button(onClick = { player?.release(); player = null; onDelete() }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) { Text("Delete permanently") } },
+    if (delete) AlertDialog(onDismissRequest = { delete = false }, title = { Text("Move this moment?") },
+        text = { Text("This hides the note and its media from your journal and reviews. Restore it from Settings → Backups & storage → Recently Deleted for 30 days, or delete it permanently there. Confirmed goal activity remains.") },
+        confirmButton = { Button(onClick = { player?.release(); player = null; onDelete() }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) { Text("Move to Recently Deleted") } },
         dismissButton = { TextButton(onClick = { delete = false }) { Text("Keep note") } })
 }
 
