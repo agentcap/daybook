@@ -39,30 +39,24 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
     LaunchedEffect(Unit) { graph.initialized.await(); initialized = true }
     val settings = preferences ?: Settings()
     val dark = settings.theme == "dark" || (settings.theme == "system" && isSystemInDarkTheme())
-    val colors = if (dark) darkColorScheme(primary = Color(0xFF9AD5BD), onPrimary = Color(0xFF123C2D), primaryContainer = Color(0xFF214F3D), onPrimaryContainer = Color(0xFFBAEAD0),
-        secondary = Color(0xFFD6C9A0), secondaryContainer = Color(0xFF315746), onSecondaryContainer = Color(0xFFDDEADF), surfaceTint = Color(0xFF9AD5BD),
-        background = Color(0xFF121A17), surface = Color(0xFF19231F), surfaceContainer = Color(0xFF24302A))
-        else lightColorScheme(primary = Color(0xFF236958), onPrimary = Color.White, primaryContainer = Color(0xFFCEEBDA), onPrimaryContainer = Color(0xFF123C2D),
-            secondary = Color(0xFF526654), secondaryContainer = Color(0xFFDDEADF), onSecondaryContainer = Color(0xFF173C30), tertiary = Color(0xFFAF6839), surfaceTint = Color(0xFF236958),
-            background = Color(0xFFF8F5EF), surface = Color(0xFFFFFCF6), surfaceContainer = Color(0xFFEFEBE1))
-    MaterialTheme(colorScheme = colors) {
-        Surface(Modifier.fillMaxSize(), color = colors.background) {
+    DaybookTheme(dark) {
+        val colors = MaterialTheme.colorScheme
+        val backdrop = androidx.compose.ui.graphics.Brush.linearGradient(if (dark)
+            listOf(Color(0xFF1B1826), Color(0xFF211B2D), Color(0xFF191622))
+            else listOf(Color(0xFFF0F7FF), Color(0xFFF5F0FF), Color(0xFFFCF6F6)))
+        Surface(Modifier.fillMaxSize().background(backdrop), color = Color.Transparent, contentColor = colors.onSurface) {
             if (!initialized || preferences == null) { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }; return@Surface }
             val scope = rememberCoroutineScope()
             val snacks = remember { SnackbarHostState() }
-            val lockEpoch by activity.lockEpoch.collectAsState()
-            var unlocked by remember(lockEpoch) { mutableStateOf(false) }
+            val unlocked by activity.journalLock.unlocked.collectAsState()
+            LaunchedEffect(settings.biometric) { activity.configureJournalLock(settings.biometric) }
             SideEffect {
+                androidx.core.view.WindowCompat.getInsetsController(activity.window, activity.window.decorView).apply {
+                    isAppearanceLightStatusBars = !dark
+                    isAppearanceLightNavigationBars = !dark
+                }
                 if (settings.biometric) activity.window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
                 else activity.window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-            }
-            fun authenticate() {
-                val prompt = BiometricPrompt(activity, ContextCompat.getMainExecutor(activity), object : BiometricPrompt.AuthenticationCallback() {
-                    override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) { unlocked = true }
-                })
-                prompt.authenticate(BiometricPrompt.PromptInfo.Builder().setTitle("Unlock Daybook")
-                    .setSubtitle("Your private journal")
-                    .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL).build())
             }
             fun run(action: suspend () -> Unit) {
                 scope.launch { try { graph.initialized.await(); action() }
@@ -89,9 +83,10 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
             val recordingError by RecordingService.lastError.collectAsState()
             LaunchedEffect(recordingError) { recordingError?.let { snacks.showSnackbar(it); RecordingService.lastError.value = null } }
             val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+            var recordingDay by remember { mutableStateOf(day) }
             val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { allowed ->
                 if (allowed) {
-                    try { ContextCompat.startForegroundService(activity, Intent(activity, RecordingService::class.java).putExtra("day", day)); voice = false }
+                    try { ContextCompat.startForegroundService(activity, Intent(activity, RecordingService::class.java).putExtra("day", recordingDay)); voice = false }
                     catch (_: Exception) { scope.launch { snacks.showSnackbar("Recording could not start. Keep Daybook open and try again.") } }
                 } else scope.launch { snacks.showSnackbar("Microphone permission is needed for voice notes. You can still write and add photos.") }
             }
@@ -128,10 +123,21 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
                 if (uri != null) run { withContext(Dispatchers.IO) { graph.backup.markdown(uri, day) }; snacks.showSnackbar("Day exported.") }
             }
             val capture by activity.capture.collectAsState()
-            LaunchedEffect(capture, settings.onboarded, unlocked) {
-                if (settings.onboarded && (!settings.biometric || unlocked) && capture.isNotEmpty()) {
+            val lifecycleState by activity.lifecycle.currentStateFlow.collectAsState()
+            LaunchedEffect(capture, settings.onboarded, settings.biometric, unlocked, lifecycleState) {
+                if (settings.onboarded && (!settings.biometric || unlocked) && capture.isNotEmpty() && lifecycleState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) {
                     tab = 0; day = LocalDate.now().toString()
-                    when (capture) { "voice" -> voice = true; "write" -> write = true; "photo" -> photo = true }
+                    when (capture) {
+                        "record" -> {
+                            if (!active) {
+                                recordingDay = day
+                                micPermission.launch(Manifest.permission.RECORD_AUDIO)
+                            }
+                        }
+                        "voice" -> voice = true
+                        "write" -> write = true
+                        "photo" -> photo = true
+                    }
                     activity.capture.value = ""
                 }
             }
@@ -145,14 +151,20 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
             val cleanupInfos by remember(day) { WorkManager.getInstance(activity).getWorkInfosForUniqueWorkFlow("cleanup-$day") }.collectAsState(emptyList())
             val modelInfos by remember { WorkManager.getInstance(activity).getWorkInfosForUniqueWorkFlow("speech-model") }.collectAsState(emptyList())
             val cleanupInfo = cleanupInfos.firstOrNull { !it.state.isFinished } ?: cleanupInfos.firstOrNull()
+            var modelRevision by remember { mutableIntStateOf(0) }
+            val modelReady = remember(modelInfos, modelRevision) { graph.model.ready() }
             val modelInfo = modelInfos.firstOrNull { !it.state.isFinished } ?: modelInfos.firstOrNull()
-            Scaffold(containerColor = colors.background, snackbarHost = { SnackbarHost(snacks) }, bottomBar = {
-                NavigationBar(containerColor = colors.surface) {
+            Scaffold(containerColor = Color.Transparent, contentColor = colors.onSurface, snackbarHost = { SnackbarHost(snacks) }, bottomBar = {
+                Surface(Modifier.navigationBarsPadding().padding(horizontal = 18.dp, vertical = 8.dp).fillMaxWidth(),
+                    shape = RoundedCornerShape(36.dp), color = colors.surface.copy(alpha = 0.97f),
+                    shadowElevation = 8.dp, border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.6f))) {
+                NavigationBar(containerColor = Color.Transparent, windowInsets = WindowInsets(0, 0, 0, 0), modifier = Modifier.height(74.dp)) {
                     val icons = listOf(Icons.Outlined.Today, Icons.Outlined.Flag, Icons.Outlined.History, Icons.Outlined.Settings)
                     listOf("Today", "Goals", "History", "Settings").forEachIndexed { i, title ->
                         NavigationBarItem(selected = tab == i, onClick = { tab = i; if (i == 0) day = LocalDate.now().toString() },
                             icon = { Icon(icons[i], title) }, label = { Text(title) })
                     }
+                }
                 }
             }) { padding ->
                 when (tab) {
@@ -165,24 +177,31 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
                     1 -> GoalsScreen(state, day, Modifier.padding(padding), onNew = { newGoal = true }, onLog = { logGoal = it },
                         onArchive = { id, archived -> run { graph.repository.change { s -> s.copy(goals = s.goals.map { if (it.id == id) it.copy(archived = archived) else it }) } } })
                     2 -> HistoryScreen(state, Modifier.padding(padding)) { selected -> day = selected; tab = 0 }
-                    3 -> SettingsScreen(settings, graph.keys.hasKey(), graph.model.ready(), modelInfo, graph.media.usage(), graph.model.file.length(),
-                        day, Modifier.padding(padding), onSave = { s -> run {
-                            if (s.biometric) require(BiometricManager.from(activity).canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL) == BiometricManager.BIOMETRIC_SUCCESS) { "Set up a screen lock or strong biometric on this phone first." }
-                            graph.saveSettings(s); snacks.showSnackbar("Settings saved.")
-                        } }, onKey = { key -> run { withContext(Dispatchers.IO) { graph.keys.save(key) }; snacks.showSnackbar(if (key.isBlank()) "API key removed." else "API key saved.") } },
-                        onDownload = { graph.model.download() }, onDeleteModel = { graph.model.delete() },
-                        onPauseDownload = { graph.model.cancel() },
-                        onBackup = { backupMode = "export" }, onRestore = { backupMode = "restore" },
-                        onMarkdown = { exportMarkdown.launch("daybook-$day.md") }, onPermissions = {
-                            if (Build.VERSION.SDK_INT >= 33) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-                        }, onBattery = { activity.startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${activity.packageName}"))) })
+                    3 -> {
+                        var hasKey by remember { mutableStateOf(graph.keys.hasKey()) }
+                        SettingsScreen(settings, hasKey, modelReady, modelInfo, graph.media.usage(), graph.model.file.length(),
+                            day, Modifier.padding(padding), onSave = { s ->
+                                if (s.biometric) require(BiometricManager.from(activity).canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL) == BiometricManager.BIOMETRIC_SUCCESS) { "Set up a screen lock or strong biometric on this phone first." }
+                                graph.saveSettings(s)
+                            }, onKey = { key -> withContext(Dispatchers.IO) { graph.keys.save(key) }; hasKey = graph.keys.hasKey() },
+                            onDownload = { graph.model.download() }, onDeleteModel = { graph.model.delete(); modelRevision++ }, onPauseDownload = { graph.model.cancel() },
+                            onBackup = { backupMode = "export" }, onRestore = { backupMode = "restore" },
+                            onMarkdown = { exportMarkdown.launch("daybook-$day.md") }, onPermissions = {
+                                activity.startActivity(Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, activity.packageName))
+                            }, onBattery = { activity.startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${activity.packageName}"))) },
+                            onAddWidget = {
+                                val manager = android.appwidget.AppWidgetManager.getInstance(activity)
+                                if (manager.isRequestPinAppWidgetSupported) manager.requestPinAppWidget(android.content.ComponentName(activity, dev.daybook.app.widget.RecordWidget::class.java), null, null)
+                                else scope.launch { snacks.showSnackbar("Touch and hold your home screen, then choose Widgets → Daybook → Daybook Record.") }
+                            })
+                    }
                 }
             }
             if (write) WriteDialog(onDismiss = { write = false }) { text -> run { graph.repository.addText(day, text); write = false } }
             if (voice) AlertDialog(onDismissRequest = { voice = false }, title = { Text("Capture a thought") },
                 text = { Text(if (active) "You are already recording. Stop from Today or the recording notification."
                     else "Speak naturally. Your original audio is kept here and transcribed on this phone. Recording continues with the screen locked, up to 30 minutes.${if (!graph.model.ready()) "\n\nDownload the English speech model in Settings to transcribe saved recordings." else ""}") },
-                confirmButton = { Button(enabled = !active, onClick = { micPermission.launch(Manifest.permission.RECORD_AUDIO) }) { Text("Start recording") } },
+                confirmButton = { Button(enabled = !active, onClick = { recordingDay = day; micPermission.launch(Manifest.permission.RECORD_AUDIO) }) { Text("Start recording") } },
                 dismissButton = { TextButton(onClick = { voice = false }) { Text("Cancel") } })
             if (photo) AlertDialog(onDismissRequest = { photo = false }, title = { Text("Add a photo") },
                 text = { Text("Attach a meal, a place, or something you want to remember. Attached photos are included when you clean up this day with OpenAI.") },
@@ -227,9 +246,12 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
                 Surface(Modifier.fillMaxSize(), color = colors.background) {
                     Column(Modifier.fillMaxSize().padding(32.dp), verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Outlined.Lock, null, Modifier.size(48.dp), tint = colors.primary)
+                        Icon(Icons.Outlined.Fingerprint, null, Modifier.size(64.dp), tint = colors.primary)
+                        Spacer(Modifier.height(24.dp))
                         Text("A space just for you", style = MaterialTheme.typography.headlineMedium)
-                        Spacer(Modifier.height(20.dp)); Button(onClick = ::authenticate) { Text("Unlock journal") }
+                        Spacer(Modifier.height(12.dp))
+                        Text("Unlock with your fingerprint or device screen lock.", color = colors.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                        Spacer(Modifier.height(24.dp)); Button(onClick = { activity.authenticateJournal(manual = true) }) { Text("Unlock journal") }
                     }
                 }
             }
@@ -243,8 +265,8 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
     if (subtitle.isNotEmpty()) Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 @Composable fun SectionCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
-    Card(modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp), content = content)
+    Card(modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp), content = content)
     }
 }
 fun amountText(value: Double): String = if (value == value.toLong().toDouble()) value.toLong().toString() else "%.1f".format(java.util.Locale.US, value)

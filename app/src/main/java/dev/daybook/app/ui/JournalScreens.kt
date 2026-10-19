@@ -8,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -160,28 +161,29 @@ fun TodayScreen(state: Snapshot, day: String, recording: Boolean, work: WorkInfo
             }
         }
         items(entries, key = { it.id }) { entry ->
-            Card(onClick = { onEntry(entry.id) }, shape = RoundedCornerShape(20.dp),
+            Card(onClick = { onEntry(entry.id) }, shape = RoundedCornerShape(28.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(when (entry.kind) { "voice" -> Icons.Outlined.Mic; "photo" -> Icons.Outlined.Image; else -> Icons.Outlined.EditNote }, null,
-                            Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
-                        Spacer(Modifier.width(8.dp))
-                        Text(Instant.ofEpochMilli(entry.created).atZone(ZoneId.of(entry.zone)).toLocalTime().format(DateTimeFormatter.ofPattern("h:mm a")),
-                            style = MaterialTheme.typography.labelMedium)
-                        Spacer(Modifier.weight(1f))
-                        Text(entry.kind.replaceFirstChar { it.uppercase() }, style = MaterialTheme.typography.labelSmall)
+                Row(Modifier.padding(18.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    MomentDateBadge(LocalDate.parse(entry.day))
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(when (entry.kind) { "voice" -> Icons.Outlined.MicNone; "photo" -> Icons.Outlined.Image; else -> Icons.Outlined.EditNote }, null,
+                                Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                            Text(Instant.ofEpochMilli(entry.created).atZone(ZoneId.of(entry.zone)).toLocalTime().format(DateTimeFormatter.ofPattern("h:mm a")),
+                                style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        if (entry.text.isNotBlank()) Text(entry.text, style = MaterialTheme.typography.bodyLarge, maxLines = 6, overflow = TextOverflow.Ellipsis)
+                        state.attachments.firstOrNull { it.entryId == entry.id && it.kind == "photo" }?.let { attachment ->
+                            coil.compose.AsyncImage(model = java.io.File(androidx.compose.ui.platform.LocalContext.current.filesDir, attachment.path), contentDescription = "Journal photo",
+                                modifier = Modifier.fillMaxWidth().height(190.dp).clip(RoundedCornerShape(18.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                        }
+                        if (entry.status != "ready") Text(when (entry.status) {
+                            "recording" -> "Recording…"; "pending" -> "Saved · waiting for offline transcription"; else -> entry.error.ifBlank { "Audio needs attention · tap to retry" }
+                        }, color = if (entry.status in setOf("error", "interrupted")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall)
+                        Text("Open note →", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                     }
-                    if (entry.text.isNotBlank()) Text(entry.text, maxLines = 5, overflow = TextOverflow.Ellipsis)
-                    state.attachments.firstOrNull { it.entryId == entry.id && it.kind == "photo" }?.let { attachment ->
-                        coil.compose.AsyncImage(model = java.io.File(androidx.compose.ui.platform.LocalContext.current.filesDir, attachment.path), contentDescription = "Journal photo",
-                            modifier = Modifier.fillMaxWidth().height(190.dp), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
-                    }
-                    if (entry.status != "ready") Text(when (entry.status) {
-                        "recording" -> "Recording…"; "pending" -> "Saved · waiting for offline transcription"; else -> entry.error.ifBlank { "Audio needs attention · tap to retry" }
-                    }, color = if (entry.status in setOf("error", "interrupted")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodySmall)
-                    Text("Open note →", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                 }
             }
         }
@@ -255,7 +257,7 @@ fun HistoryScreen(state: Snapshot, modifier: Modifier, onDay: (String) -> Unit) 
         }
         if (days.isEmpty()) item { Text(if (query.isEmpty()) "Your saved days will appear here." else "No matching days.") }
         items(days, key = { it }) { day ->
-            Card(onClick = { onDay(day) }, shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+            Card(onClick = { onDay(day) }, shape = RoundedCornerShape(28.dp), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(LocalDate.parse(day).format(DateTimeFormatter.ofPattern("EEEE, MMM d, yyyy")), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     val count = state.entries.count { it.day == day }
@@ -265,6 +267,15 @@ fun HistoryScreen(state: Snapshot, modifier: Modifier, onDay: (String) -> Unit) 
                         maxLines = 3, overflow = TextOverflow.Ellipsis)
                 }
             }
+        }
+    }
+}
+
+@Composable private fun MomentDateBadge(date: LocalDate) {
+    Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f)) {
+        Column(Modifier.width(48.dp).padding(vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(date.format(DateTimeFormatter.ofPattern("EEE")).uppercase(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(date.dayOfMonth.toString(), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         }
     }
 }

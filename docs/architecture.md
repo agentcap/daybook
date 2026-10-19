@@ -35,3 +35,11 @@ A `verification` build type has a separate application ID and its own storage. A
 Real speech and screenshot tours are opt-in. The speech fixture is copied from the pinned upstream repository into instrumentation assets only. Real speech tests temporarily enable airplane mode on an emulator and restore connectivity in a finally block. Synthetic screenshot data is never seeded into the personal APK.
 
 The signed personal release is non-debuggable and includes ARM64 and x86-64. It is directly installable and is not a Play Store release. Preserve the ignored `.tools/signing/` folder for future in-place updates. Debug and isolated verification APKs remain available for development.
+
+## Interface and capture routing (0.2.0)
+
+The shared Compose theme supplies lavender light/dark colors, typography, rounded cards, and a gradient backdrop. Settings has focused category pages, immediate saves for switches/theme, and explicit schedule/key/model saves. Save errors are shown inline and API-key status refreshes after the encrypted write completes.
+
+A retained JournalLockSession tracks successful authentication and a single automatic attempt per foreground visit. MainActivity attaches AndroidX BiometricPrompt callbacks on creation, waits for resume, and locks access when stopped. Credential authentication and configuration changes do not start duplicate prompts; cancellation leaves a manual retry. A full-screen secure lock overlay retains pending photo/backup result handlers beneath it.
+
+Both home-screen providers use immutable activity PendingIntents. The dedicated RecordWidget and the existing capture widget's Record button request direct capture. MainActivity validates a private widget token before accepting direct recording through its exported launcher, waits for onboarding, resume, and app unlock, then requests microphone permission and starts the microphone foreground service. Intents are consumed once and pending capture survives configuration changes. The service guards against concurrent recordings. A widget never starts a microphone service directly from a background broadcast.

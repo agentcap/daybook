@@ -1,34 +1,71 @@
 package dev.daybook.app.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.*
 import androidx.compose.ui.unit.dp
 import androidx.work.WorkInfo
 import dev.daybook.core.*
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 
-@Composable fun ScheduleFields(s: Settings, onChange: (Settings) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        OutlinedTextField(s.wake, { onChange(s.copy(wake = it)) }, Modifier.weight(1f), label = { Text("Wake · HH:mm") }, singleLine = true)
-        OutlinedTextField(s.sleep, { onChange(s.copy(sleep = it)) }, Modifier.weight(1f), label = { Text("Quiet · HH:mm") }, singleLine = true)
+private fun clockText(value: String) = LocalTime.parse(value).format(DateTimeFormatter.ofPattern("h:mm a"))
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable private fun TimeSetting(title: String, value: String, onChange: (String) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Row(Modifier.fillMaxWidth().clickable { open = true }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(title, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+        TextButton(onClick = { open = true }) { Text(clockText(value)); Icon(Icons.Outlined.ExpandMore, null, Modifier.size(18.dp)) }
     }
-    OutlinedTextField(s.intervalHours.toString(), { value -> value.toIntOrNull()?.let { onChange(s.copy(intervalHours = it)) } },
-        Modifier.fillMaxWidth(), label = { Text("Remind every… hours (1–12)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
-    OutlinedTextField(s.cleanupTime, { onChange(s.copy(cleanupTime = it)) }, Modifier.fillMaxWidth(), label = { Text("Nightly cleanup · HH:mm") }, singleLine = true)
-    Text("Use 24-hour local time. Android and Samsung battery controls can delay reminders and cleanup.", style = MaterialTheme.typography.bodySmall)
+    if (open) {
+        val time = LocalTime.parse(value)
+        val picker = rememberTimePickerState(time.hour, time.minute, is24Hour = false)
+        AlertDialog(onDismissRequest = { open = false }, title = { Text(title) },
+            text = { TimeInput(picker) },
+            confirmButton = { TextButton(onClick = { onChange("%02d:%02d".format(picker.hour, picker.minute)); open = false }) { Text("Done") } },
+            dismissButton = { TextButton(onClick = { open = false }) { Text("Cancel") } })
+    }
 }
-@Composable fun ToggleRow(title: String, subtitle: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+@Composable fun ScheduleFields(s: Settings, onChange: (Settings) -> Unit) {
+    TimeSetting("Start of day", s.wake) { onChange(s.copy(wake = it)) }
+    TimeSetting("Quiet hours begin", s.sleep) { onChange(s.copy(sleep = it)) }
+    var intervals by remember { mutableStateOf(false) }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) { Text(title, style = MaterialTheme.typography.titleSmall); if (subtitle.isNotBlank()) Text(subtitle, style = MaterialTheme.typography.bodySmall) }
-        Switch(checked, onChange)
+        Text("Remind me every", Modifier.weight(1f))
+        Box {
+            TextButton(onClick = { intervals = true }) { Text("${s.intervalHours} ${if (s.intervalHours == 1) "hour" else "hours"}"); Icon(Icons.Outlined.ExpandMore, null) }
+            DropdownMenu(intervals, onDismissRequest = { intervals = false }) {
+                (1..12).forEach { hours -> DropdownMenuItem(text = { Text("$hours ${if (hours == 1) "hour" else "hours"}") },
+                    onClick = { onChange(s.copy(intervalHours = hours)); intervals = false }) }
+            }
+        }
+    }
+    TimeSetting("Nightly cleanup", s.cleanupTime) { onChange(s.copy(cleanupTime = it)) }
+    Text("Local time · no reminders during quiet hours.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+@Composable fun ToggleRow(title: String, subtitle: String, checked: Boolean, onChange: (Boolean) -> Unit, enabled: Boolean = true) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleSmall)
+            if (subtitle.isNotBlank()) Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Switch(checked, onChange, enabled = enabled)
     }
 }
 @Composable fun Onboarding(initial: Settings, modelReady: Boolean, onDownload: () -> Unit, onSave: (Settings) -> Unit) {
@@ -39,98 +76,215 @@ import dev.daybook.core.*
         Icon(Icons.Outlined.AutoStories, null, Modifier.size(42.dp), tint = MaterialTheme.colorScheme.primary)
         PageTitle("Welcome to Daybook", "Make room for your day.", "A private place for thoughts, everyday photos, and the goals that matter to you.")
         SectionCard {
-            Text("Choose your rhythm", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+            Text("Choose your rhythm", style = MaterialTheme.typography.titleLarge)
             ScheduleFields(s) { s = it }
-            ToggleRow("Journal reminders", "Gentle check-ins during waking hours.", s.reminders) { s = s.copy(reminders = it) }
-            ToggleRow("Automatic daily cleanup", "Runs around your chosen nightly time.", s.autoCleanup) { s = s.copy(autoCleanup = it) }
+            ToggleRow("Journal reminders", "Gentle check-ins during waking hours.", s.reminders, onChange = { s = s.copy(reminders = it) })
+            ToggleRow("Automatic daily cleanup", "Runs around your chosen nightly time.", s.autoCleanup, onChange = { s = s.copy(autoCleanup = it) })
         }
         SectionCard {
-            Text("Your voice stays here", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+            Text("Your voice stays here", style = MaterialTheme.typography.titleLarge)
             Text("Voice is transcribed entirely on this phone after downloading the English model once (141 MB). Original recordings are kept for playback.")
             OutlinedButton(onClick = onDownload, enabled = !modelReady) { Text(if (modelReady) "Speech model ready" else "Download English speech model") }
             Text("You can start journaling now and download it later in Settings.", style = MaterialTheme.typography.bodySmall)
         }
         SectionCard {
-            Text("A little help at day’s end", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+            Text("A little help at day’s end", style = MaterialTheme.typography.titleLarge)
             Text("Cleanup sends your selected day’s note text and all journal-attached photos to OpenAI using your own API key. Audio is never uploaded. AI suggestions only affect goals after you confirm.")
-            ToggleRow("Allow OpenAI daily reviews", "You can change this and enter your key in Settings.", s.cloudConsent) { s = s.copy(cloudConsent = it) }
+            ToggleRow("Allow OpenAI daily reviews", "You can change this and enter your key in Settings.", s.cloudConsent, onChange = { s = s.copy(cloudConsent = it) })
             Text("API requests disable response storage, but provider retention rules can still apply.", style = MaterialTheme.typography.bodySmall)
         }
         if (error.isNotBlank()) Text(error, color = MaterialTheme.colorScheme.error)
-        Button(onClick = { try { JournalRules.validateSettings(s); onSave(s) } catch (e: Exception) { error = e.message ?: "Check the schedule." } }, modifier = Modifier.fillMaxWidth().height(54.dp)) { Text("Start my journal") }
+        Button(onClick = { try { JournalRules.validateSettings(s); onSave(s) } catch (e: Exception) { error = e.message ?: "Check the schedule." } },
+            modifier = Modifier.fillMaxWidth().height(54.dp)) { Text("Start my journal") }
         Text("No account required. Use encrypted backups to protect your journal before uninstalling or changing phones.", style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(20.dp))
     }
 }
+
+@Composable private fun SettingsLink(icon: ImageVector, title: String, subtitle: String, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.primaryContainer) {
+            Icon(icon, null, Modifier.padding(12.dp).size(22.dp), tint = MaterialTheme.colorScheme.primary)
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(title, style = MaterialTheme.typography.titleSmall)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Icon(Icons.Outlined.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
 @Composable
 fun SettingsScreen(settings: Settings, hasKey: Boolean, modelReady: Boolean, modelWork: WorkInfo?, mediaBytes: Long, modelBytes: Long,
-    day: String, modifier: Modifier, onSave: (Settings) -> Unit, onKey: (String) -> Unit, onDownload: () -> Unit,
+    day: String, modifier: Modifier, onSave: suspend (Settings) -> Unit, onKey: suspend (String) -> Unit, onDownload: () -> Unit,
     onDeleteModel: () -> Unit, onPauseDownload: () -> Unit, onBackup: () -> Unit, onRestore: () -> Unit,
-    onMarkdown: () -> Unit, onPermissions: () -> Unit, onBattery: () -> Unit) {
-    var s by remember(settings) { mutableStateOf(settings) }
+    onMarkdown: () -> Unit, onPermissions: () -> Unit, onBattery: () -> Unit, onAddWidget: () -> Unit) {
+    var page by rememberSaveable { mutableStateOf<String?>(null) }
+    var draft by remember(settings) { mutableStateOf(settings) }
     var apiKey by remember { mutableStateOf("") }
+    var modelDraft by rememberSaveable(settings.model) { mutableStateOf(settings.model) }
     var error by remember { mutableStateOf("") }
-    var keySaved by remember { mutableStateOf(false) }
-    Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        PageTitle("Your space", "Make it yours.", "Privacy, your daily rhythm, and a little peace of mind.")
-        SectionCard {
-            Text("Daily rhythm", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-            ScheduleFields(s) { s = it }
-            ToggleRow("Reminders", "", s.reminders) { s = s.copy(reminders = it) }
-            ToggleRow("Nightly cleanup", "Requires consent, an API key, and internet.", s.autoCleanup) { s = s.copy(autoCleanup = it) }
-            OutlinedButton(onClick = onPermissions) { Text("Enable notification permission") }
-            TextButton(onClick = onBattery) { Text("Open app & battery settings") }
-            Text("If check-ins are delayed, review Daybook’s notification permission and Samsung sleeping-app settings. Avoid force-stopping the app.", style = MaterialTheme.typography.bodySmall)
+    var saved by remember { mutableStateOf("") }
+    var saving by remember { mutableStateOf(false) }
+    var deleteModel by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    fun task(message: String, action: suspend () -> Unit) {
+        scope.launch {
+            saving = true; error = ""; saved = ""
+            try { action(); saved = message }
+            catch (e: CancellationException) { throw e }
+            catch (e: Exception) { error = e.message ?: "Could not save. Please try again." }
+            finally { saving = false }
         }
-        SectionCard {
-            Text("OpenAI reviews", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-            ToggleRow("Send notes and attached photos", "All journal-attached photos for the selected day are included. Recordings stay local.", s.cloudConsent) { s = s.copy(cloudConsent = it) }
-            OutlinedTextField(s.model, { s = s.copy(model = it) }, Modifier.fillMaxWidth(), label = { Text("Vision-capable model") }, singleLine = true)
-            Text("Your key is encrypted with Android Keystore. It is never bundled in the app, exported, or sent anywhere except OpenAI.", style = MaterialTheme.typography.bodySmall)
-            OutlinedTextField(apiKey, { apiKey = it; keySaved = false }, Modifier.fillMaxWidth(), label = { Text(if (hasKey) "Replace saved API key" else "Your OpenAI API key") },
-                visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), singleLine = true)
-            Row {
-                Button(onClick = { onKey(apiKey.trim()); apiKey = ""; keySaved = true }, enabled = apiKey.isNotBlank()) { Text("Save key") }
-                if (hasKey) TextButton(onClick = { onKey(""); keySaved = false }) { Text("Remove key") }
+    }
+    fun save(value: Settings) = task("Changes saved") { JournalRules.validateSettings(value); onSave(value) }
+    BackHandler(page != null) { page = null; error = ""; saved = "" }
+    val scroll = key(page) { rememberScrollState() }
+    LaunchedEffect(page) { draft = settings; saved = ""; error = "" }
+    Column(modifier.fillMaxSize().verticalScroll(scroll).padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        if (page == null) {
+            PageTitle("Your space", "Make it yours.", "A little rhythm. A little peace of mind.")
+            SectionCard {
+                Text("DAILY ROUTINE", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                SettingsLink(Icons.Outlined.NotificationsNone, "Reminders & rhythm",
+                    if (settings.reminders) "Every ${settings.intervalHours} hours · ${clockText(settings.wake)}–${clockText(settings.sleep)}" else "Reminders are off") { page = "rhythm" }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                SettingsLink(Icons.Outlined.MicNone, "Voice & offline speech", if (modelReady) "English · ready offline" else "Download speech model · 141 MB") { page = "voice" }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                SettingsLink(Icons.Outlined.AutoAwesome, "AI daily reviews", if (!hasKey) "Add your OpenAI key to get started" else if (settings.cloudConsent) "Ready · ${if (settings.autoCleanup) "nightly & on demand" else "on demand"}" else "Key saved · reviews paused") { page = "ai" }
             }
-            Text(if (hasKey) "API key configured." else if (keySaved) "Saving key…" else "No API key saved. Offline features remain available.", style = MaterialTheme.typography.labelMedium)
-            Text("Reviews use paid OpenAI API usage. Requests set store:false; that does not guarantee zero provider retention. See the privacy guide in the repository.", style = MaterialTheme.typography.bodySmall)
-        }
-        SectionCard {
-            Text("Offline speech", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-            Text(if (modelReady) "English base.en · ready for airplane mode" else "Download the English model once to transcribe voice notes.")
-            Text("whisper.cpp · CPU inference · checksum-verified 141 MB model", style = MaterialTheme.typography.bodySmall)
-            when (modelWork?.state) {
-                WorkInfo.State.RUNNING -> { LinearProgressIndicator(progress = { modelWork.progress.getInt("percent", 0) / 100f }, modifier = Modifier.fillMaxWidth()); Text("Downloading · ${modelWork.progress.getInt("percent", 0)}%") }
-                WorkInfo.State.ENQUEUED -> Text("Download queued or waiting to retry.")
-                WorkInfo.State.FAILED -> Text(modelWork.outputData.getString("error") ?: "Download failed. Please retry.", color = MaterialTheme.colorScheme.error)
-                WorkInfo.State.CANCELLED -> Text("Download paused. Tap Download to resume.")
-                else -> Unit
+            SectionCard {
+                Text("YOUR JOURNAL", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                SettingsLink(Icons.Outlined.Fingerprint, "Privacy & lock", if (settings.biometric) "Fingerprint or screen lock · on" else "App lock is off") { page = "privacy" }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                SettingsLink(Icons.Outlined.Palette, "Appearance", "${settings.theme.replaceFirstChar { it.uppercase() }} theme") { page = "appearance" }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                SettingsLink(Icons.Outlined.CloudDownload, "Backups & storage", "${byteText(mediaBytes)} of memories · keep a safe copy") { page = "storage" }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                SettingsLink(Icons.Outlined.Widgets, "Home-screen recording", "One tap to capture a thought") { page = "widget" }
             }
-            if (modelWork?.state in setOf(WorkInfo.State.RUNNING, WorkInfo.State.ENQUEUED)) OutlinedButton(onClick = onPauseDownload) { Text("Pause download") }
-            else OutlinedButton(onClick = onDownload, enabled = !modelReady) { Text(if (modelReady) "Model ready" else "Download / resume model") }
-            if (modelReady) TextButton(onClick = onDeleteModel) { Text("Delete downloaded model") }
-        }
-        SectionCard {
-            Text("Privacy & appearance", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-            ToggleRow("Lock journal", "Use biometrics or your device credential. Scheduled cleanup remains enabled.", s.biometric) { s = s.copy(biometric = it) }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("system", "light", "dark").forEach { theme -> FilterChip(s.theme == theme, { s = s.copy(theme = theme) }, label = { Text(theme.replaceFirstChar { it.uppercase() }) }) }
+            Text("Daybook ${dev.daybook.app.BuildConfig.VERSION_NAME} · Made for the everyday.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else {
+            TextButton(onClick = { page = null; error = ""; saved = "" }, contentPadding = PaddingValues(0.dp)) {
+                Icon(Icons.AutoMirrored.Outlined.ArrowBack, null); Spacer(Modifier.width(8.dp)); Text("All settings")
             }
-            Text("Original recordings and photos are kept until you delete their note. Android cloud backup and automatic device transfer are excluded.", style = MaterialTheme.typography.bodySmall)
+            val title = when (page) { "rhythm" -> "Your daily rhythm"; "voice" -> "Speak your mind."; "ai" -> "A little clarity."; "privacy" -> "Just for you."; "appearance" -> "Set the mood."; "widget" -> "A thought, one tap away."; else -> "Keep every memory." }
+            PageTitle("Make it yours", title)
+            when (page) {
+                "rhythm" -> {
+                    SectionCard {
+                        ToggleRow("Journal reminders", "A gentle nudge to capture your day.", draft.reminders, { draft = draft.copy(reminders = it) })
+                        ScheduleFields(draft) { draft = it }
+                        Button(onClick = { save(draft) }, enabled = !saving, modifier = Modifier.fillMaxWidth()) { Text("Save rhythm") }
+                    }
+                    SectionCard {
+                        Text("Keep check-ins arriving", style = MaterialTheme.typography.titleMedium)
+                        Text("Allow notifications for reminders and recording controls. Android and Samsung battery settings can delay scheduled check-ins.", style = MaterialTheme.typography.bodyMedium)
+                        OutlinedButton(onClick = onPermissions, modifier = Modifier.fillMaxWidth()) { Text("Manage notifications") }
+                        TextButton(onClick = onBattery) { Text("Open battery & app settings") }
+                        Text("On Samsung, keep Daybook out of Sleeping apps if reminders arrive late. Snooze a reminder for 30 minutes from its notification.", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+                "voice" -> {
+                    SectionCard {
+                        Icon(Icons.Outlined.GraphicEq, null, Modifier.size(36.dp), tint = MaterialTheme.colorScheme.primary)
+                        Text(if (modelReady) "Ready for airplane mode" else "Take your voice offline", style = MaterialTheme.typography.titleLarge)
+                        Text("Download English speech once (141 MB). Voice notes are then transcribed on your phone, even without internet. Your original audio is always kept.")
+                        when (modelWork?.state) {
+                            WorkInfo.State.RUNNING -> {
+                                LinearProgressIndicator(progress = { modelWork.progress.getInt("percent", 0) / 100f }, modifier = Modifier.fillMaxWidth())
+                                Text("Downloading · ${modelWork.progress.getInt("percent", 0)}%")
+                            }
+                            WorkInfo.State.ENQUEUED -> Text("Download queued or waiting to retry.")
+                            WorkInfo.State.FAILED -> Text(modelWork.outputData.getString("error") ?: "Download failed. Please retry.", color = MaterialTheme.colorScheme.error)
+                            WorkInfo.State.CANCELLED -> Text("Download paused. Continue whenever you are ready.")
+                            else -> Unit
+                        }
+                        if (modelWork?.state in setOf(WorkInfo.State.RUNNING, WorkInfo.State.ENQUEUED)) OutlinedButton(onClick = onPauseDownload) { Text("Pause download") }
+                        else Button(onClick = onDownload, enabled = !modelReady) { Text(if (modelReady) "Speech model ready" else "Download English model") }
+                        Text("Recording keeps going when the screen locks. Stop from the recording notification or Today. Each note can be up to 30 minutes.", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+                "ai" -> {
+                    SectionCard {
+                        ToggleRow("Allow OpenAI reviews", "Sends this day’s text and attached photos. Audio stays on your phone.", settings.cloudConsent, { save(settings.copy(cloudConsent = it)) }, !saving)
+                        ToggleRow("Automatic nightly cleanup", "Uses your saved key and internet connection.", settings.autoCleanup, { save(settings.copy(autoCleanup = it)) }, !saving)
+                        TimeSetting("Nightly review time", settings.cleanupTime) { save(settings.copy(cleanupTime = it)) }
+                        Text("Originals are preserved. Review goal progress and calorie estimates before they count.", style = MaterialTheme.typography.bodySmall)
+                    }
+                    SectionCard {
+                        Text(if (hasKey) "Your API key is saved" else "Connect your OpenAI key", style = MaterialTheme.typography.titleMedium)
+                        Text("Your key is encrypted on this phone and excluded from backups. OpenAI API usage is billed to your account.", style = MaterialTheme.typography.bodySmall)
+                        OutlinedTextField(apiKey, { apiKey = it }, Modifier.fillMaxWidth(), label = { Text(if (hasKey) "Replace API key" else "OpenAI API key") },
+                            visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), singleLine = true)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(onClick = { val key = apiKey.trim(); task("API key saved") { onKey(key); apiKey = "" } }, enabled = apiKey.isNotBlank() && !saving) { Text("Save key") }
+                            if (hasKey) TextButton(onClick = { task("API key removed") { onKey(""); apiKey = "" } }, enabled = !saving) { Text("Remove key") }
+                        }
+                        OutlinedTextField(modelDraft, { modelDraft = it }, Modifier.fillMaxWidth(), label = { Text("OpenAI model") }, singleLine = true)
+                        OutlinedButton(onClick = { save(settings.copy(model = modelDraft.trim())) }, enabled = !saving) { Text("Save model") }
+                        Text("Requests disable response storage (store: false). Provider retention rules may still apply.", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+                "privacy" -> SectionCard {
+                    Icon(Icons.Outlined.Fingerprint, null, Modifier.size(42.dp), tint = MaterialTheme.colorScheme.primary)
+                    ToggleRow("Fingerprint & screen lock", "Ask automatically whenever you open Daybook.", settings.biometric, { save(settings.copy(biometric = it)) }, !saving)
+                    Text("Use an enrolled fingerprint or your device PIN, pattern, or password. If you dismiss the prompt, your journal stays locked until you retry.")
+                    Text("Scheduled cleanup and an ongoing recording can continue while your journal is locked.", style = MaterialTheme.typography.bodySmall)
+                    HorizontalDivider()
+                    Text("Your memories stay with you", style = MaterialTheme.typography.titleMedium)
+                    Text("Original audio and photos stay until you delete their note. Automatic Android cloud backup and device transfer are disabled. Use an encrypted backup before uninstalling.", style = MaterialTheme.typography.bodySmall)
+                }
+                "appearance" -> SectionCard {
+                    Text("Choose a theme", style = MaterialTheme.typography.titleLarge)
+                    listOf("system" to "Follow your phone", "light" to "Light", "dark" to "Dark").forEach { (value, label) ->
+                        Row(Modifier.fillMaxWidth().clickable(enabled = !saving) { save(settings.copy(theme = value)) }.padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically) {
+                            Icon(when(value) { "light" -> Icons.Outlined.LightMode; "dark" -> Icons.Outlined.DarkMode; else -> Icons.Outlined.BrightnessAuto }, null)
+                            Text(label, Modifier.weight(1f).padding(start = 14.dp))
+                            RadioButton(settings.theme == value, { save(settings.copy(theme = value)) }, enabled = !saving)
+                        }
+                    }
+                    Text("Soft lavender, room to breathe, and a place for every moment.", style = MaterialTheme.typography.bodySmall)
+                }
+                "storage" -> {
+                    SectionCard {
+                        Text("Keep a safe copy", style = MaterialTheme.typography.titleLarge)
+                        Text("A full backup includes your notes, goals, original audio, and photos. Your API key and downloaded model are excluded.")
+                        Button(onClick = onBackup, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Outlined.Lock, null); Spacer(Modifier.width(8.dp)); Text("Create encrypted backup") }
+                        OutlinedButton(onClick = onRestore, modifier = Modifier.fillMaxWidth()) { Text("Restore a backup") }
+                        Text("Choose a passphrase you can remember. A lost passphrase cannot be recovered.", style = MaterialTheme.typography.bodySmall)
+                    }
+                    SectionCard {
+                        Text("Share a day", style = MaterialTheme.typography.titleMedium)
+                        Text("Export $day as readable text. Audio and photo files are included in full backups only.", style = MaterialTheme.typography.bodySmall)
+                        OutlinedButton(onClick = onMarkdown) { Text("Export day as Markdown") }
+                    }
+                    SectionCard {
+                        Text("On this phone", style = MaterialTheme.typography.titleMedium)
+                        Text("Journal media · ${byteText(mediaBytes)}")
+                        Text("Speech model · ${byteText(modelBytes)}")
+                        if (modelReady) TextButton(onClick = { deleteModel = true }) { Text("Remove speech model") }
+                        Text("Remove individual recordings and photos by deleting their note. Removing the model keeps your recordings; download it again to transcribe.", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+                "widget" -> SectionCard {
+                    Icon(Icons.Outlined.Mic, null, Modifier.size(42.dp), tint = MaterialTheme.colorScheme.primary)
+                    Text("Record from your home screen", style = MaterialTheme.typography.titleLarge)
+                    Text("Add the Daybook Record widget. Tap its microphone to start recording immediately. Stop & save from the recording notification.")
+                    Button(onClick = onAddWidget, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Outlined.Add, null); Spacer(Modifier.width(8.dp)); Text("Add Record widget") }
+                    Text("Or touch and hold an empty space on your home screen → Widgets → Daybook → Daybook Record.", style = MaterialTheme.typography.bodyMedium)
+                    Text("The first recording needs microphone permission. If app lock is on, fingerprint authentication appears first. Finish onboarding once before using the widget.", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            if (saving) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (saved.isNotBlank()) Text(saved, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+            if (error.isNotBlank()) Text(error, color = MaterialTheme.colorScheme.error)
         }
-        if (error.isNotBlank()) Text(error, color = MaterialTheme.colorScheme.error)
-        Button(onClick = { try { JournalRules.validateSettings(s); onSave(s) } catch (e: Exception) { error = e.message ?: "Check your settings." } },
-            modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("Save settings") }
-        SectionCard {
-            Text("Keep your memories safe", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-            Text("Media: ${byteText(mediaBytes)} · Speech model: ${byteText(modelBytes)}", style = MaterialTheme.typography.bodySmall)
-            Button(onClick = onBackup, modifier = Modifier.fillMaxWidth()) { Text("Create encrypted full backup") }
-            OutlinedButton(onClick = onRestore, modifier = Modifier.fillMaxWidth()) { Text("Restore encrypted backup") }
-            OutlinedButton(onClick = onMarkdown, modifier = Modifier.fillMaxWidth()) { Text("Export $day as Markdown") }
-            Text("Markdown contains text and attachment identifiers. Use a full backup to preserve audio and photos. A lost backup passphrase cannot be recovered.", style = MaterialTheme.typography.bodySmall)
-        }
-        Text("Daybook 0.1.0 · Made for the everyday.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(12.dp))
     }
+    if (deleteModel) AlertDialog(onDismissRequest = { deleteModel = false }, title = { Text("Remove speech model?") },
+        text = { Text("Your voice notes stay saved. Download the model again before transcribing.") },
+        confirmButton = { TextButton(onClick = { onDeleteModel(); deleteModel = false }) { Text("Remove model") } },
+        dismissButton = { TextButton(onClick = { deleteModel = false }) { Text("Keep model") } })
 }

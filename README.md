@@ -6,23 +6,40 @@ A personal Android journal for thoughts, voice notes, everyday photos, and the g
 
 Synthetic sample journal, captured from the running Android app. The meal illustration and review text are fixtures.
 
-| Today | Goals | Dark theme |
+| Today | Journal | Settings |
 | --- | --- | --- |
-| <img src="docs/screenshots/02-today.png" alt="Today with capture and daily goals" width="250"> | <img src="docs/screenshots/04-goals.png" alt="Goal progress" width="250"> | <img src="docs/screenshots/07-dark.png" alt="Dark theme" width="250"> |
+| <img src="docs/screenshots/02-today.png" alt="Today with capture and daily goals" width="250"> | <img src="docs/screenshots/08-moments.png" alt="Photo journal with date badges" width="250"> | <img src="docs/screenshots/06-settings.png" alt="Focused Settings menu" width="250"> |
 
 ## Start on your phone
 
-1. Install `releases/daybook-0.1.0.apk`, or build the APK below. This is a signed, non-debuggable build for personal installation.
+1. Install `releases/daybook-0.2.0.apk`, or build the APK below. This is a signed, non-debuggable build for personal installation.
 2. Choose your waking hours, reminder interval, and nightly cleanup time during onboarding. Grant notification permission for check-ins.
 3. Download the English speech model (141 MB) once. Recording works before the download; saved recordings can be transcribed afterwards.
 4. Create goals from Goals → New goal. Templates include gym, cooking, laundry, blogging, learning, and 3000 calories.
-5. For daily AI reviews, enable **Send notes and attached photos**, enter your own OpenAI API key, and save settings. Offline capture and manual goal tracking need no key.
+5. For daily AI reviews, open **Settings → AI daily reviews**, save your own OpenAI API key, and turn on **Allow OpenAI reviews**. Offline capture and manual goal tracking need no key.
 
 A note can be written, recorded, or photographed. Tap a saved note to play its original audio, inspect its original text and earlier revisions, edit it, retry transcription, or delete it.
 
 The Today screen shows **distinct goals worked on that day**. Logging partial effort counts even with amount zero; completing a goal is separate. Daily and weekly numeric progress is calculated by the app. Weekly goals use Monday–Sunday, and historical views only include activity through the selected day.
 
 AI reviews include the selected day's note text and **all photos attached to its journal**, rather than the phone's entire gallery. Original audio never leaves the phone. Generated reviews have their own revision history. Goal and calorie suggestions require your confirmation and can be edited, dismissed, or undone. A later note/edit marks the review outdated; refresh it to include the new content.
+
+## Make it yours
+
+The visual style takes inspiration from [Reflection](https://www.reflection.app/): a soft lavender/blue backdrop, white rounded cards, inset journal photos, date badges, and a floating pill navigation bar. Daybook keeps its own branding and uses no Reflection assets.
+
+Settings is a focused menu: **Reminders & rhythm**, **Voice & offline speech**, **AI daily reviews**, **Privacy & lock**, **Appearance**, **Backups & storage**, and **Home-screen recording**. Choose times with a time picker and an interval from a list, then tap **Save rhythm**. Privacy, theme, and AI switches save immediately; the API key and model have their own save buttons. Errors and successful saves appear on the page.
+
+Enable **Settings → Privacy & lock → Fingerprint & screen lock** to show Android authentication automatically whenever you open or return to Daybook. With an enrolled fingerprint, use the sensor immediately; your device PIN/pattern/password is also available. Dismissing the prompt leaves the journal locked and allows a manual retry. Background cleanup and an existing recording continue.
+
+### Record from your home screen
+
+- Open **Settings → Home-screen recording → Add Record widget**, then accept your launcher's Add prompt.
+- Or touch and hold an empty area on the home screen → **Widgets → Daybook → Daybook Record**. The larger three-action capture widget is also available.
+- Tap the microphone: Daybook opens and starts recording immediately, with no Start confirmation. If app lock is enabled, authenticate first. Grant microphone permission on the first recording and complete onboarding once.
+- Stop using **Stop & save** in the persistent recording notification or on Today. Repeated widget taps while recording do not create another recording.
+
+Install this APK over 0.1.0 to retain existing notes and settings. It uses the same private signing key; no uninstall is needed.
 
 ## Build
 
