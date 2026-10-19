@@ -12,6 +12,8 @@ Synthetic sample journal, captured from the running Android app. The meal illust
 
 ## Start on your phone
 
+[GitHub repository](https://github.com/agentcap/daybook) contains source code only. APK/AAB files are local build artifacts and are not uploaded. Build an APK using the instructions below; paths under `releases/` refer to artifacts on the original build machine.
+
 1. Install `releases/daybook-0.5.0-beta.1.apk`, or build the APK below. This is a signed, non-debuggable build for personal installation.
 2. Choose your waking hours, reminder interval, and nightly cleanup time during onboarding. Grant notification permission for check-ins.
 3. Download the English speech model (141 MB) once. Recording works before the download; saved recordings can be transcribed afterwards.
