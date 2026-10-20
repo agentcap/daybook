@@ -11,6 +11,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -28,18 +33,35 @@ import androidx.compose.ui.window.DialogProperties
 import dev.daybook.app.capture.RecordingSession
 
 @Composable fun RecordingScreen(session: RecordingSession, active: Boolean, modelReady: Boolean,
-    onStart: () -> Unit, onStop: () -> Unit, onDismiss: () -> Unit, onPause: () -> Unit = {}, onBookmark: () -> Unit = {}, reduceMotion: Boolean = false, onDiscard: () -> Unit = {}) {
+    onStart: () -> Unit, onStop: () -> Unit, onDismiss: () -> Unit, onPause: () -> Unit = {}, onBookmark: () -> Unit = {}, reduceMotion: Boolean = false, onDiscard: () -> Unit = {},
+    canEditTranscript: Boolean = false, onSaveTranscript: suspend (String) -> Unit = {}) {
     val colors = MaterialTheme.colorScheme
     val scroll = rememberScrollState()
     var confirmDiscard by remember(session.entryId) { mutableStateOf(false) }
-    LaunchedEffect(session.transcript) { kotlinx.coroutines.delay(80); if (reduceMotion) scroll.scrollTo(scroll.maxValue) else scroll.animateScrollTo(scroll.maxValue) }
+    var editing by rememberSaveable(session.entryId) { mutableStateOf(false) }
+    var draft by rememberSaveable(session.entryId) { mutableStateOf("") }
+    var baseline by rememberSaveable(session.entryId) { mutableStateOf("") }
+    var saving by remember(session.entryId) { mutableStateOf(false) }
+    var editError by remember(session.entryId) { mutableStateOf("") }
+    var edited by remember(session.entryId) { mutableStateOf(false) }
+    var confirmLeave by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val focus = remember { FocusRequester() }
+    val dirty = draft != baseline
+    fun close() {
+        if (saving) return
+        if (editing && dirty) confirmLeave = true else onDismiss()
+    }
+    LaunchedEffect(session.transcript, editing) {
+        if (!editing) { kotlinx.coroutines.delay(80); if (reduceMotion) scroll.scrollTo(scroll.maxValue) else scroll.animateScrollTo(scroll.maxValue) }
+    }
     val level by animateFloatAsState(if (session.phase == "recording") session.level else 0f, if (reduceMotion) snap() else tween(140), label = "microphone level")
     val alpha = if (reduceMotion || !active || session.phase != "recording") 1f else {
         val pulse = rememberInfiniteTransition(label = "recording pulse")
         val value by pulse.animateFloat(0.45f, 1f, infiniteRepeatable(tween(1000), RepeatMode.Reverse), label = "recording indicator")
         value
     }
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+    Dialog(onDismissRequest = ::close, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         val view = LocalView.current
         SideEffect {
             (view.parent as? DialogWindowProvider)?.window?.let { window ->
@@ -50,16 +72,16 @@ import dev.daybook.app.capture.RecordingSession
             }
         }
         Surface(Modifier.fillMaxSize(), color = colors.background) {
-            Column(Modifier.fillMaxSize().systemBarsPadding().padding(horizontal = 24.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+            Column(Modifier.fillMaxSize().systemBarsPadding().imePadding().padding(horizontal = 24.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Surface(shape = CircleShape, color = colors.primaryContainer) { Icon(Icons.Outlined.Mic, null, Modifier.padding(10.dp), tint = colors.primary) }
                     Column(Modifier.weight(1f).padding(start = 12.dp)) {
                         Text(if (active) "Recording your day" else if (session.phase == "saved") "A thought, kept." else "Capture a thought", style = MaterialTheme.typography.titleLarge)
                         Text("On this phone · original audio preserved", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
                     }
-                    IconButton(onClick = onDismiss) { Icon(Icons.Outlined.ExpandMore, if (active) "Keep recording in background" else "Close recording") }
+                    IconButton(onClick = ::close, enabled = !saving) { Icon(Icons.Outlined.ExpandMore, if (active) "Keep recording in background" else "Close recording") }
                 }
-                SectionCard {
+                if (!editing) SectionCard {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Box(Modifier.size(8.dp).alpha(if (active && session.phase == "recording" && !reduceMotion) alpha else 1f).background(if (active) colors.error else colors.primary, CircleShape))
                         Text(when(session.phase) { "starting" -> "Starting…"; "paused" -> "Paused"; "saving" -> "Saving your audio…"; "discarding" -> "Discarding…"; "discarded" -> "Recording discarded"; "saved" -> "Saved on this phone"; "error" -> "Needs attention"; else -> if (active) "Listening" else "Ready when you are" },
@@ -79,20 +101,57 @@ import dev.daybook.app.capture.RecordingSession
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Outlined.Subtitles, null, Modifier.size(18.dp), tint = colors.primary)
-                    Text("LIVE TRANSCRIPT", style = MaterialTheme.typography.labelMedium, color = colors.primary)
-                    if (session.transcript.isNotBlank()) Text("· draft", style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
+                    Text(if (editing) "EDIT TRANSCRIPT" else if (session.phase == "saved") "TRANSCRIPT" else "LIVE TRANSCRIPT",
+                        Modifier.weight(1f), style = MaterialTheme.typography.labelMedium, color = colors.primary)
+                    if (active && session.transcript.isNotBlank()) Text("· draft", style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
+                    if (canEditTranscript && !editing) TextButton(onClick = {
+                        draft = session.transcript; baseline = session.transcript; editError = ""; edited = false; editing = true
+                    }, modifier = Modifier.semantics { contentDescription = "Edit transcript" }) {
+                        Icon(Icons.Outlined.Edit, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
+                        Text(if (LocalDensity.current.fontScale > 1.3f) "Edit" else "Edit transcript")
+                    }
                 }
                 Surface(Modifier.weight(1f).fillMaxWidth(), shape = RoundedCornerShape(24.dp), color = colors.surface) {
-                    Column(Modifier.padding(20.dp).verticalScroll(scroll).then(if (reduceMotion) Modifier else Modifier.animateContentSize()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if (editing) {
+                        LaunchedEffect(Unit) { focus.requestFocus() }
+                        OutlinedTextField(draft, { draft = it; editError = "" },
+                            modifier = Modifier.fillMaxSize().padding(8.dp).focusRequester(focus),
+                            label = { Text("Transcript") }, enabled = !saving,
+                            textStyle = MaterialTheme.typography.bodyLarge, shape = RoundedCornerShape(20.dp))
+                    } else Column(Modifier.padding(20.dp).verticalScroll(scroll).then(if (reduceMotion) Modifier else Modifier.animateContentSize()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         SelectionContainer {
-                            Text(session.transcript.ifBlank { if (session.phase == "saved") "No live text was captured. Your audio is saved; open the note to retry or add text." else if (active && modelReady) "Your words will appear here as you speak…" else if (!modelReady) "Your audio is safe. Download the English model in Settings for live transcripts." else "Speak naturally. A small moment is enough." },
+                            Text(session.transcript.ifBlank { if (session.phase == "saved") "No text was captured. Your audio is saved. Tap Edit transcript to add your words, or open the note to retry transcription." else if (active && modelReady) "Your words will appear here as you speak…" else if (!modelReady) "Your audio is safe. Download the English model in Settings for live transcripts." else "Speak naturally. A small moment is enough." },
                                 style = MaterialTheme.typography.bodyLarge, color = if (session.transcript.isBlank()) colors.onSurfaceVariant else colors.onSurface)
                         }
                     }
                 }
-                Text(if (session.phase == "paused") "Paused · resume when you are ready." else session.previewStatus, style = MaterialTheme.typography.bodySmall,
-                    color = if (session.phase == "error") colors.error else colors.onSurfaceVariant)
-                if (active) {
+                Text(when {
+                    editError.isNotBlank() -> editError
+                    editing -> "Save your corrections here. Original audio and earlier transcript versions stay saved."
+                    edited -> "Transcript updated. Original audio and earlier versions are preserved."
+                    session.phase == "paused" -> "Paused · resume when you are ready."
+                    else -> session.previewStatus
+                }, style = MaterialTheme.typography.bodySmall,
+                    color = if (editError.isNotBlank() || session.phase == "error") colors.error else colors.onSurfaceVariant)
+                if (editing) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedButton(onClick = { editing = false; editError = "" }, enabled = !saving,
+                            modifier = Modifier.weight(1f).heightIn(min = 52.dp)) { Text("Cancel") }
+                        Button(onClick = {
+                            saving = true; editError = ""
+                            val text = draft
+                            scope.launch {
+                                try { onSaveTranscript(text); editing = false; edited = true }
+                                catch (error: CancellationException) { throw error }
+                                catch (error: Exception) { editError = error.message?.take(300) ?: "Could not save your transcript. Please try again." }
+                                finally { saving = false }
+                            }
+                        }, enabled = canEditTranscript && dirty && draft.isNotBlank() && !saving,
+                            modifier = Modifier.weight(1f).heightIn(min = 52.dp).semantics { contentDescription = "Save transcript changes" }) {
+                            Text(if (saving) "Saving…" else if (LocalDensity.current.fontScale > 1.3f) "Save" else "Save changes")
+                        }
+                    }
+                } else if (active) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         OutlinedButton(onClick = onPause, enabled = session.phase in setOf("recording", "paused"), modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
                             Icon(if (session.phase == "paused") Icons.Outlined.PlayArrow else Icons.Outlined.Pause, null)
@@ -119,6 +178,11 @@ import dev.daybook.app.capture.RecordingSession
             }
         }
     }
+    if (confirmLeave) AlertDialog(onDismissRequest = { confirmLeave = false },
+        title = { Text("Discard transcript changes?") },
+        text = { Text("Your recording and saved transcript will stay. Only these unsaved edits will be discarded.") },
+        confirmButton = { TextButton(onClick = { confirmLeave = false; onDismiss() }) { Text("Discard changes") } },
+        dismissButton = { TextButton(onClick = { confirmLeave = false }) { Text("Keep editing") } })
     if (confirmDiscard && active) AlertDialog(onDismissRequest = { confirmDiscard = false },
         title = { Text("Discard this recording?") },
         text = { Text("Delete this recording’s audio and live transcript? It will not be added to your journal. Earlier entries stay saved.") },

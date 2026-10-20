@@ -245,7 +245,8 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
                 val finalEntry = state.entries.find { it.id == recordingSession.entryId }
                 val display = when {
                     finalEntry?.status == "ready" -> recordingSession.copy(transcript = finalEntry.text, previewStatus = "Final transcript ready. Original audio is preserved.")
-                    !active && finalEntry?.status == "error" -> recordingSession.copy(previewStatus = "Audio saved. ${finalEntry.error}")
+                    !active && finalEntry != null -> recordingSession.copy(transcript = finalEntry.text,
+                        previewStatus = if (finalEntry.status == "error") "Audio saved. ${finalEntry.error}" else recordingSession.previewStatus)
                     else -> recordingSession
                 }
                 RecordingScreen(display, active, modelReady, onStart = ::startRecording,
@@ -253,7 +254,9 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
                     onDismiss = { recordingSheet = false },
                     onPause = { activity.startService(Intent(activity, RecordingService::class.java).setAction(RecordingService.PAUSE)) },
                     onBookmark = { activity.startService(Intent(activity, RecordingService::class.java).setAction(RecordingService.BOOKMARK)) }, reduceMotion = reducedMotion,
-                    onDiscard = { activity.startService(Intent(activity, RecordingService::class.java).setAction(RecordingService.DISCARD)) })
+                    onDiscard = { activity.startService(Intent(activity, RecordingService::class.java).setAction(RecordingService.DISCARD)) },
+                    canEditTranscript = !active && recordingSession.phase == "saved" && finalEntry != null && finalEntry.status != "recording",
+                    onSaveTranscript = { text -> graph.repository.editEntry(recordingSession.entryId, text) })
             }
             if (photo) AlertDialog(onDismissRequest = { photo = false }, title = { Text("Add a photo") },
                 text = { Text("Attach a meal, a place, or something you want to remember. Photos can be included in OpenAI reviews. Open a saved note to keep it on-device or exclude its photos.") },

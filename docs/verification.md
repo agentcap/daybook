@@ -1,6 +1,25 @@
 # Verification
 
-Current release: **0.5.2-beta.1**. Earlier release results are retained below for context.
+Current release: **0.5.3-beta.1**. Earlier release results are retained below for context.
+
+## 0.5.3 Edit the saved recording transcript
+
+Completed on 2026-10-19 in the isolated Android 16/API 36 x86-64 emulator:
+
+- After Save recording, Edit transcript opens a keyboard-aware editor on the same screen. Save changes commits corrections; Cancel leaves the saved note unchanged. Closing with unsaved edits asks before discarding them. An empty or failed transcript can be filled in manually.
+- The editor keeps its own draft, including across activity recreation, so a final transcript arriving during typing does not reset the field. Saving uses the existing revision-preserving repository operation and its ready-status protection against subsequent transcription.
+- All nine affected Android workflows passed together in 27.357 seconds: three new editor cases, three discard cases, background/reopened recording controls, and both Note & Voice widget actions. The three editor cases passed again with enabled-button assertions and synchronized screenshots (14.059 seconds).
+- Tests checked correction persistence, unchanged audio digest, retained original transcript and revision, stale reflection fingerprint, queued-worker protection, incoming final text during editing, activity recreation, cancel/keep-editing behavior, blank-text save prevention, and adding text when transcription is unavailable.
+- New editor tests use actual emulator microphone capture and Save recording, then synthetic transcript fixtures to isolate editing from native inference latency. Their incoming-transcript case simulates the repository update. Native inference behavior and phone accuracy are not established by these UI fixtures.
+- All 47 JVM tests passed (38 core, 9 app). Android lint reports 0 errors and the existing 40 warnings. Verification/test APK, signed personal APK, and signed AAB builds passed.
+- APK/AAB signatures, bundletool validation, private-file exclusions, and 16 KiB ZIP/native ELF alignment passed. The signed release upgraded personal 0.5.2-beta.1 and cold-launched successfully.
+- Screenshots 31 and 32 show the actual inline editor with the keyboard and the saved correction, using synthetic text. No changes to transcription/native engines, scheduling, providers, backup formats, or database schema; prior real-model/backup results remain applicable and were not repeated here.
+
+APK: releases/daybook-0.5.3-beta.1.apk, 67,082,864 bytes; SHA-256 9afb13310710afdc24f8ad8f260ad28800e64e3cfa0f46c8cc9059cc8db1556c.
+
+AAB: releases/daybook-0.5.3-beta.1.aab, 27,646,574 bytes; SHA-256 4ec05520021e830a9275af75a41f9d52353c5e430e316e338a061b1bc7e60bb1.
+
+Physical Galaxy/Pixel testing and live OpenAI validation remain pending. GitHub distribution remains source-only.
 
 ## 0.5.2 Note & Voice widget
 

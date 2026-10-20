@@ -4,7 +4,7 @@ A personal Android journal for thoughts, voice notes, everyday photos, and the g
 
 ## Preview
 
-Synthetic sample journal, captured from the running Android app. The meal illustration, review text and planning suggestions shown in the screenshots are fixtures. The recording screenshot shows actual emulator capture with no detected speech.
+Synthetic sample journal, captured from the running Android app. The meal illustration, review text and planning suggestions shown in the screenshots are fixtures. The recording screenshot shows actual emulator capture with no detected speech. Transcript-editor screenshots use synthetic text.
 
 | Today | Journal | Settings |
 | --- | --- | --- |
@@ -14,7 +14,7 @@ Synthetic sample journal, captured from the running Android app. The meal illust
 
 [GitHub repository](https://github.com/agentcap/daybook) contains source code only. APK/AAB files are local build artifacts and are not uploaded. Build an APK using the instructions below; paths under `releases/` refer to artifacts on the original build machine.
 
-1. Install `releases/daybook-0.5.2-beta.1.apk`, or build the APK below. This is a signed, non-debuggable build for personal installation.
+1. Install `releases/daybook-0.5.3-beta.1.apk`, or build the APK below. This is a signed, non-debuggable build for personal installation.
 2. Choose your waking hours, reminder interval, and nightly reflections time during onboarding. Grant notification permission for check-ins.
 3. Download the English speech model (141 MB) once. Recording works before the download; saved recordings can be transcribed afterwards.
 4. Create goals from Goals → New goal. Templates include gym, cooking, laundry, blogging, learning, and 3000 calories.
@@ -36,7 +36,9 @@ Switching providers requeues unfinished cleanup with the appropriate network req
 
 ## Recording, reflection, and plans
 
-The recording view shows elapsed time, microphone levels, and a local draft transcript. Download the English model once, then use it offline. Previews process short windows beginning after three seconds; text can arrive later on slower devices. Pause and resume without adding pause-time silence. Use Discard to confirm removal of the current recording and its live draft; earlier entries and reflections remain saved. Mark a moment with an audio bookmark; after processing, use Transcript timeline in the note to seek to a segment of the original audio. Segment times are approximate. Stopping saves the original audio and queues a fuller transcription. Minimize the view to browse the app, or lock the screen while recording. Draft text survives a failed final transcription.
+The recording view shows elapsed time, microphone levels, and a local draft transcript. Download the English model once, then use it offline. Previews process short windows beginning after three seconds; text can arrive later on slower devices. Pause and resume without adding pause-time silence. Use Discard to confirm removal of the current recording and its live draft; earlier entries and reflections remain saved. Mark a moment with an audio bookmark; after processing, use Transcript timeline in the note to seek to a segment of the original audio. Segment times are approximate. Stopping saves the original audio and queues a fuller transcription. On that same screen, tap **Edit transcript**, correct or add text, then **Save changes**. Editing also works while the fuller transcript is processing: incoming text does not replace your draft, and saved corrections are protected from later transcription. Cancel returns to the saved transcript; closing with unsaved edits asks before discarding them. Original audio and transcript revisions stay saved. Minimize the view to browse the app, or lock the screen while recording. Draft text survives a failed final transcription.
+
+[See the saved-transcript editor](docs/screenshots/31-edit-saved-transcript.png) and [the corrected recording](docs/screenshots/32-transcript-corrected.png).
 
 History offers **Journal**, **Calendar**, and **Stats** views. Select a date to browse its original notes or open the day. Stats show saved notes, journal days, photos, goal check-ins, your current streak, and your longest streak. A streak counts consecutive dates with a saved note, with today available to continue yesterday's streak. Goal check-ins count each goal once per day; goal activity alone does not extend a journaling streak.
 
@@ -64,7 +66,7 @@ Enable **Settings → Privacy & lock → Fingerprint & screen lock** to show And
 - Stop using **Stop & save** in the persistent recording notification or on Today. Repeated widget taps while recording do not create another recording.
 - After updating, touch and hold an existing widget to resize it, or remove/re-add it to apply the smaller default footprint. Removing a widget does not delete journal entries. Launcher cell sizes vary; [Android widget sizing](https://developer.android.com/develop/ui/views/appwidgets/layouts) describes the requested defaults.
 
-Install this APK over 0.1.0, 0.2.0, 0.3.0, 0.4.0, 0.4.1, 0.5.0-beta.1, or 0.5.1-beta.1 to retain existing notes and settings. It uses the same private signing key; no uninstall is needed.
+Install this APK over 0.1.0, 0.2.0, 0.3.0, 0.4.0, 0.4.1, 0.5.0-beta.1, 0.5.1-beta.1, or 0.5.2-beta.1 to retain existing notes and settings. It uses the same private signing key; no uninstall is needed.
 
 ## Build
 
