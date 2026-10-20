@@ -52,3 +52,18 @@ class RecordWidget : AppWidgetProvider() {
         }
     }
 }
+
+/** Two independent capture shortcuts in a compact home-screen tile. */
+class NoteVoiceWidget : AppWidgetProvider() {
+    override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
+        ids.forEach { id -> manager.updateAppWidget(id, views(context, id)) }
+    }
+
+    companion object {
+        internal fun views(context: Context, id: Int) =
+            RemoteViews(context.packageName, R.layout.note_voice_widget).apply {
+                setOnClickPendingIntent(R.id.note_voice_write, CaptureIntents.pending(context, id, "write"))
+                setOnClickPendingIntent(R.id.note_voice_record, CaptureIntents.pending(context, id, "record"))
+            }
+    }
+}

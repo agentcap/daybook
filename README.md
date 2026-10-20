@@ -14,7 +14,7 @@ Synthetic sample journal, captured from the running Android app. The meal illust
 
 [GitHub repository](https://github.com/agentcap/daybook) contains source code only. APK/AAB files are local build artifacts and are not uploaded. Build an APK using the instructions below; paths under `releases/` refer to artifacts on the original build machine.
 
-1. Install `releases/daybook-0.5.1-beta.1.apk`, or build the APK below. This is a signed, non-debuggable build for personal installation.
+1. Install `releases/daybook-0.5.2-beta.1.apk`, or build the APK below. This is a signed, non-debuggable build for personal installation.
 2. Choose your waking hours, reminder interval, and nightly reflections time during onboarding. Grant notification permission for check-ins.
 3. Download the English speech model (141 MB) once. Recording works before the download; saved recordings can be transcribed afterwards.
 4. Create goals from Goals → New goal. Templates include gym, cooking, laundry, blogging, learning, and 3000 calories.
@@ -50,19 +50,21 @@ History offers **Journal**, **Calendar**, and **Stats** views. Select a date to 
 
 The visual style takes inspiration from [Reflection](https://www.reflection.app/): a soft lavender/blue backdrop, white rounded cards, inset journal photos, date badges, and a floating pill navigation bar. Daybook keeps its own branding and uses no Reflection assets. Compact type gives notes more room while following Android’s font-size preference. Page transitions, changing card sizes, progress indicators, list updates, and recording levels use subtle animations.
 
-Settings is a focused menu: **Reminders & rhythm**, **Voice & offline speech**, **AI reflections**, **Privacy & lock**, **Appearance**, **Backups & storage**, and **Home-screen recording**. Choose times with a time picker and an interval from a list, then tap **Save rhythm**. Privacy, theme, and AI switches save immediately; the API key and model have their own save buttons. Errors and successful saves appear on the page.
+Settings is a focused menu: **Reminders & rhythm**, **Voice & offline speech**, **AI reflections**, **Privacy & lock**, **Appearance**, **Backups & storage**, and **Home-screen widgets**. Choose times with a time picker and an interval from a list, then tap **Save rhythm**. Privacy, theme, and AI switches save immediately; the API key and model have their own save buttons. Errors and successful saves appear on the page.
 
 Enable **Settings → Privacy & lock → Fingerprint & screen lock** to show Android authentication automatically whenever you open or return to Daybook. With an enrolled fingerprint, use the sensor immediately; your device PIN/pattern/password is also available. Dismissing the prompt leaves the journal locked and allows a manual retry. Background cleanup and an existing recording continue.
 
-### Record from your home screen
+### Capture from your home screen
 
-- Open **Settings → Home-screen recording → Add Record widget**, then accept your launcher's Add prompt.
-- Or touch and hold an empty area on the home screen → **Widgets → Daybook → Daybook Record**. Record is a compact 1 × 1 dark tile. A dark 3 × 1 Record/Write/Photo strip is also available.
+- Open **Settings → Home-screen widgets → Add Note & Voice widget**, then accept your launcher's Add prompt. This dark 2 × 1 widget has separate **Write** and **Record** buttons. Write opens a new note; Record starts voice capture.
+- **Add Record widget** offers the existing compact 1 × 1 microphone tile. The larger dark 3 × 1 Record/Write/Photo strip is also available.
+- Or touch and hold an empty area on the home screen → **Widgets → Daybook → Daybook Note & Voice** (or choose either existing widget).
+- [See the actual emulator home-screen widgets](docs/screenshots/30-note-voice-widget.png).
 - Tap the microphone: Daybook opens and starts recording immediately, with no Start confirmation. If app lock is enabled, authenticate first. Grant microphone permission on the first recording and complete onboarding once.
 - Stop using **Stop & save** in the persistent recording notification or on Today. Repeated widget taps while recording do not create another recording.
 - After updating, touch and hold an existing widget to resize it, or remove/re-add it to apply the smaller default footprint. Removing a widget does not delete journal entries. Launcher cell sizes vary; [Android widget sizing](https://developer.android.com/develop/ui/views/appwidgets/layouts) describes the requested defaults.
 
-Install this APK over 0.1.0, 0.2.0, 0.3.0, 0.4.0, 0.4.1, or 0.5.0-beta.1 to retain existing notes and settings. It uses the same private signing key; no uninstall is needed.
+Install this APK over 0.1.0, 0.2.0, 0.3.0, 0.4.0, 0.4.1, 0.5.0-beta.1, or 0.5.1-beta.1 to retain existing notes and settings. It uses the same private signing key; no uninstall is needed.
 
 ## Build
 

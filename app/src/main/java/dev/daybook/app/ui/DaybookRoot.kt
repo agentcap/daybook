@@ -229,6 +229,10 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
                                 val manager = android.appwidget.AppWidgetManager.getInstance(activity)
                                 if (manager.isRequestPinAppWidgetSupported) manager.requestPinAppWidget(android.content.ComponentName(activity, dev.daybook.app.widget.RecordWidget::class.java), null, null)
                                 else scope.launch { snacks.showSnackbar("Touch and hold your home screen, then choose Widgets → Daybook → Daybook Record.") }
+                            }, onAddNoteVoiceWidget = {
+                                val manager = android.appwidget.AppWidgetManager.getInstance(activity)
+                                if (manager.isRequestPinAppWidgetSupported) manager.requestPinAppWidget(android.content.ComponentName(activity, dev.daybook.app.widget.NoteVoiceWidget::class.java), null, null)
+                                else scope.launch { snacks.showSnackbar("Touch and hold your home screen, then choose Widgets → Daybook → Daybook Note & Voice.") }
                             }, localReady = localReady, localWork = localInfo, localBytes = graph.localModel.usage(),
                         onLocalDownload = { graph.localModel.download() }, onLocalPause = { graph.localModel.pause() },
                         onLocalDelete = { graph.localModel.delete(); localRevision++ }, onTools = { toolsPage = it })

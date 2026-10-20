@@ -7,4 +7,8 @@
     <string name="record_widget_title">Record a thought</string>
     <string name="record_widget_hint">Daybook · Tap to start</string>
     <string name="record_widget_description">Start a Daybook voice recording. Stop and save from the recording notification.</string>
+    <string name="note_voice_widget_label">Daybook Note &amp; Voice</string>
+    <string name="note_voice_widget_description">Write a note or start a voice recording with one tap.</string>
+    <string name="widget_write_description">Write a Daybook note</string>
+    <string name="widget_record_description">Start a Daybook voice recording</string>
 </resources>

@@ -70,7 +70,8 @@ class CaptureAndSettingsTest {
         compose.onNodeWithText("Light", substring = false).performClick()
         compose.waitUntil(10000) { compose.activity.daybook.settings.value.theme == "light" }
         compose.onNodeWithText("All settings").performScrollTo().performClick()
-        compose.onNodeWithText("Home-screen recording").performScrollTo().performClick()
+        compose.onNodeWithText("Home-screen widgets").performScrollTo().performClick()
+        compose.onNodeWithText("Add Note & Voice widget").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Add Record widget").performScrollTo().assertIsDisplayed()
     }
     @Test fun apiKeyStatusUpdatesAfterSaveAndRemoval() = runBlocking<Unit> {
@@ -82,10 +83,17 @@ class CaptureAndSettingsTest {
             compose.activity.getSystemService(android.view.inputmethod.InputMethodManager::class.java)
                 .hideSoftInputFromWindow(compose.activity.window.decorView.windowToken, 0)
         }
-        compose.onNodeWithText("Save key").performScrollTo().performClick()
+        compose.waitUntil(10000) {
+            androidx.core.view.ViewCompat.getRootWindowInsets(compose.activity.window.decorView)
+                ?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) != true
+        }
+        // Focused text fields can scroll while the IME closes; activate the button's accessibility action.
+        compose.onNodeWithText("Save key").performScrollTo().assertIsEnabled()
+            .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { it() }
         compose.waitUntil(10000) { compose.activity.daybook.keys.hasKey() }
         compose.onNodeWithText("Your API key is saved").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("Remove key").performScrollTo().performClick()
+        compose.onNodeWithText("Remove key").performScrollTo().assertIsEnabled()
+            .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { it() }
         compose.waitUntil(10000) { !compose.activity.daybook.keys.hasKey() }
         compose.onNodeWithText("Connect your OpenAI key").performScrollTo().assertIsDisplayed()
     }

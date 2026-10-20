@@ -1,6 +1,25 @@
 # Verification
 
-Current release: **0.5.1-beta.1**. Earlier release results are retained below for context.
+Current release: **0.5.2-beta.1**. Earlier release results are retained below for context.
+
+## 0.5.2 Note & Voice widget
+
+Completed on 2026-10-19 in the isolated Android 16/API 36 x86-64 emulator:
+
+- Added a separate dark 2 × 1 Note & Voice widget. The existing 1 × 1 Record tile and 3 × 1 capture strip remain available. Both shortcuts use the existing authenticated, user-initiated capture flow.
+- The two new Android workflows passed: Write opens the editor and saves today's note without microphone capture; Record starts immediately and repeated taps keep one recording. Provider registration and the requested 2 × 1 footprint were checked.
+- All five affected Android workflows passed together in 13.533 seconds, including existing direct-record/recreation and Settings navigation/key-status checks. The existing key-status test uses accessibility button activation after keyboard dismissal to avoid focus/scroll pointer races. Earlier diagnostic failures remain in ignored verification/ logs.
+- Actual launcher pinning from Settings passed. Both buttons were tapped on the installed home-screen widget: Write opened the editor; Record started capture. The temporary recording was discarded. The new widget remained readable at 200% system text size, and the emulator's font setting was restored afterwards.
+- All 47 JVM tests passed (38 core, 9 app). Android lint reports 0 errors and the same 40 warnings as the previous release.
+- Verification/test APK, signed personal APK and signed AAB builds passed. APK/AAB signatures, bundletool validation, private-file exclusions, and 16 KiB ZIP/native ELF alignment passed.
+- The signed release upgraded the existing personal 0.5.1-beta.1 installation and cold-launched successfully. Screenshot 11 shows the new widget Settings page; screenshot 30 shows the actual launcher widgets.
+- No native inference, recording engine, scheduling, provider, backup, or data-format changes. Broader inference/backup checks from earlier releases were not repeated for this widget update.
+
+APK: releases/daybook-0.5.2-beta.1.apk, 67,050,096 bytes; SHA-256 db43162f1b9b579d664cd3cfcb254c73bcd0d4948890b444ca5213252397ee4e.
+
+AAB: releases/daybook-0.5.2-beta.1.aab, 27,638,897 bytes; SHA-256 a68cf39a9e823fa905c08c36b3c6a9dfb11ee841da98b7945350f001fa85fe78.
+
+Physical Galaxy/Pixel launcher, fingerprint and microphone behavior remain unverified. GitHub remains source-only; APK/AAB artifacts stay local.
 
 ## 0.5.1 recording discard and daily reflections
 

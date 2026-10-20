@@ -1,0 +1,6 @@
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="110dp" android:minHeight="56dp" android:minResizeWidth="110dp" android:minResizeHeight="56dp"
+    android:targetCellWidth="2" android:targetCellHeight="1" android:initialLayout="@layout/note_voice_widget"
+    android:previewLayout="@layout/note_voice_widget" android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen" android:updatePeriodMillis="0"
+    android:description="@string/note_voice_widget_description" />

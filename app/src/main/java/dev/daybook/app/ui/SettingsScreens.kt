@@ -120,7 +120,7 @@ private fun clockText(value: String) = LocalTime.parse(value).format(DateTimeFor
 fun SettingsScreen(settings: Settings, hasKey: Boolean, modelReady: Boolean, modelWork: WorkInfo?, mediaBytes: Long, modelBytes: Long,
     day: String, modifier: Modifier, onSave: suspend (Settings) -> Unit, onKey: suspend (String) -> Unit, onDownload: () -> Unit,
     onDeleteModel: () -> Unit, onPauseDownload: () -> Unit, onBackup: () -> Unit, onRestore: () -> Unit,
-    onMarkdown: () -> Unit, onPermissions: () -> Unit, onBattery: () -> Unit, onAddWidget: () -> Unit,
+    onMarkdown: () -> Unit, onPermissions: () -> Unit, onBattery: () -> Unit, onAddWidget: () -> Unit, onAddNoteVoiceWidget: () -> Unit,
     localReady: Boolean, localWork: WorkInfo?, localBytes: Long, onLocalDownload: () -> Unit,
     onLocalPause: () -> Unit, onLocalDelete: suspend () -> Unit, onTools: (String) -> Unit = {}) {
     var page by rememberSaveable { mutableStateOf<String?>(null) }
@@ -166,7 +166,7 @@ fun SettingsScreen(settings: Settings, hasKey: Boolean, modelReady: Boolean, mod
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 SettingsLink(Icons.Outlined.CloudDownload, "Backups & storage", "${byteText(mediaBytes)} of memories · keep a safe copy") { page = "storage" }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                SettingsLink(Icons.Outlined.Widgets, "Home-screen recording", "One tap to capture a thought") { page = "widget" }
+                SettingsLink(Icons.Outlined.Widgets, "Home-screen widgets", "Write a note or record with one tap") { page = "widget" }
             }
             SectionCard {
                 SettingsLink(Icons.Outlined.Sync, "Processing & downloads", "Task status, retries, Wi-Fi and charging choices") { onTools("processing") }
@@ -316,13 +316,20 @@ fun SettingsScreen(settings: Settings, hasKey: Boolean, modelReady: Boolean, mod
                         Text("Remove individual recordings and photos by deleting their note. Removing the model keeps your recordings; download it again to transcribe.", style = MaterialTheme.typography.bodySmall)
                     }
                 }
-                "widget" -> SectionCard {
-                    Icon(Icons.Outlined.Mic, null, Modifier.size(42.dp), tint = MaterialTheme.colorScheme.primary)
-                    Text("Record from your home screen", style = MaterialTheme.typography.titleLarge)
-                    Text("Add the compact 1 × 1 Daybook Record widget. Its dark theme stays easy to spot on your home screen. Tap the microphone to start recording; stop & save from the notification.")
-                    Button(onClick = onAddWidget, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Outlined.Add, null); Spacer(Modifier.width(8.dp)); Text("Add Record widget") }
-                    Text("Touch and hold your home screen → Widgets → Daybook → Daybook Record. Already added an older widget? Touch and hold it to shrink it, or remove it and add it again.", style = MaterialTheme.typography.bodyMedium)
-                    Text("The first recording needs microphone permission. If app lock is on, fingerprint authentication appears first. Finish onboarding once before using the widget.", style = MaterialTheme.typography.bodySmall)
+                "widget" -> {
+                    SectionCard {
+                        Icon(Icons.Outlined.Widgets, null, Modifier.size(36.dp), tint = MaterialTheme.colorScheme.primary)
+                        Text("Write or record, one tap away", style = MaterialTheme.typography.titleLarge)
+                        Text("The compact, dark 2 × 1 Note & Voice widget gives each action its own button. Write opens a new note; Record starts voice capture.")
+                        Button(onClick = onAddNoteVoiceWidget, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Outlined.Add, null); Spacer(Modifier.width(8.dp)); Text("Add Note & Voice widget") }
+                    }
+                    SectionCard {
+                        Text("Just the microphone", style = MaterialTheme.typography.titleMedium)
+                        Text("Prefer one small button? Add the dark 1 × 1 Record widget.")
+                        OutlinedButton(onClick = onAddWidget, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Outlined.Mic, null); Spacer(Modifier.width(8.dp)); Text("Add Record widget") }
+                    }
+                    Text("You can also touch and hold your home screen → Widgets → Daybook. Choose Note & Voice, Record, or the larger Record/Write/Photo strip. Touch and hold a widget to resize it.", style = MaterialTheme.typography.bodyMedium)
+                    Text("The first recording needs microphone permission. If app lock is on, authenticate before writing or recording. Finish onboarding once before using a widget. Stop and save voice capture from the recording screen or notification.", style = MaterialTheme.typography.bodySmall)
                 }
             }
             if (saving) LinearProgressIndicator(Modifier.fillMaxWidth())

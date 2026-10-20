@@ -30,6 +30,10 @@
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/capture_widget"/>
         </receiver>
+        <receiver android:name=".widget.NoteVoiceWidget" android:exported="false" android:label="@string/note_voice_widget_label">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/note_voice_widget"/>
+        </receiver>
         <receiver android:name=".widget.RecordWidget" android:exported="false" android:label="@string/record_widget_label">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/record_widget"/>

@@ -100,7 +100,7 @@ class ScreenshotTour {
         compose.onNodeWithText("All settings").performScrollTo().performClick()
         compose.onNodeWithText("Privacy & lock").performScrollTo().performClick(); shot("10-privacy")
         compose.onNodeWithText("All settings").performScrollTo().performClick()
-        compose.onNodeWithText("Home-screen recording").performScrollTo().performClick(); shot("11-widget")
+        compose.onNodeWithText("Home-screen widgets").performScrollTo().performClick(); shot("11-widget")
         compose.onNodeWithText("All settings").performScrollTo().performClick()
         compose.onNodeWithText("AI reflections").performScrollTo().performClick()
         compose.onNodeWithText("On-device", substring = false).performClick()

@@ -1,0 +1,29 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="horizontal" android:baselineAligned="false" android:gravity="center_vertical" android:padding="4dp"
+    android:background="@drawable/widget_background">
+    <LinearLayout android:id="@+id/note_voice_write"
+        android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+        android:orientation="vertical" android:gravity="center" android:padding="2dp"
+        android:background="@drawable/widget_action_background" android:focusable="true" android:clickable="true"
+        android:contentDescription="@string/widget_write_description" android:importantForAccessibility="yes">
+        <ImageView android:layout_width="24dp" android:layout_height="24dp"
+            android:src="@drawable/ic_widget_note" android:contentDescription="@null" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="3dp"
+            android:text="@string/write" android:textColor="#F2EEFF" android:textSize="11sp"
+            android:fontFamily="sans-serif-medium" android:includeFontPadding="false"
+            android:maxLines="1" android:ellipsize="end" android:importantForAccessibility="no" />
+    </LinearLayout>
+    <LinearLayout android:id="@+id/note_voice_record" android:layout_marginStart="4dp"
+        android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+        android:orientation="vertical" android:gravity="center" android:padding="2dp"
+        android:background="@drawable/widget_record_action_background" android:focusable="true" android:clickable="true"
+        android:contentDescription="@string/widget_record_description" android:importantForAccessibility="yes">
+        <ImageView android:layout_width="24dp" android:layout_height="24dp"
+            android:src="@drawable/ic_widget_mic" android:contentDescription="@null" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="3dp"
+            android:text="@string/record" android:textColor="#241B39" android:textSize="11sp"
+            android:fontFamily="sans-serif-medium" android:includeFontPadding="false"
+            android:maxLines="1" android:ellipsize="end" android:importantForAccessibility="no" />
+    </LinearLayout>
+</LinearLayout>
