@@ -8,7 +8,7 @@ Record device model, Android/One UI version, app version, power settings, and ac
 1. Record English speech offline with names/numbers/noise; compare live draft, final text, and original audio.
 2. Pause/resume several times, add bookmarks, seek through transcript segments, and confirm pause time adds no silence to the saved recording.
 3. Record for 30 minutes, lock the screen, switch apps, receive a phone call, and connect/disconnect wired/Bluetooth microphones. Confirm any interruption preserves audio and never silently counts inaccessible microphone input as success.
-4. Measure local cleanup time, peak memory, battery change, and heat for short/long days. Repeat with an empty/missing model and low storage. Keep manual capture usable.
+4. Measure local reflections time, peak memory, battery change, and heat for short/long days. Repeat with an empty/missing model and low storage. Keep manual capture usable.
 5. Test reminders, quiet hours, snooze, reboot, time-zone changes, Doze, and Samsung sleeping-app controls over several days.
 6. Test fingerprint auto-prompt, cancellation/retry, screenshot blocking, and One UI Record widget add/resize/tap while locked and unlocked.
 7. Round-trip a scheduled encrypted backup to local and a chosen cloud document provider. Revoke folder access, disconnect storage, interrupt a write, and check the last good backup remains usable. Verify wrong passwords fail before changing the journal.

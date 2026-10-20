@@ -44,7 +44,7 @@ class ReleaseWorkflowTest {
             assertEquals(ms,graph.repository.read().entries.single().bookmarks.single().ms)
             compose.onNodeWithText("Resume",substring=false).performClick()
             compose.waitUntil(10000) { RecordingService.session.value.phase=="recording" && RecordingService.session.value.elapsedMs>ms+300 }
-            compose.onNode(hasText("Stop & save recording") and hasAnyAncestor(isDialog())).performClick()
+            compose.onNode(hasText("Save recording") and hasAnyAncestor(isDialog())).performClick()
             compose.waitUntil(15000) { !RecordingService.active.value }
             assertTrue(graph.media.file(audio.path).length()>bytes)
             assertEquals(1,graph.repository.read().entries.single().bookmarks.size)
@@ -80,8 +80,8 @@ class ReleaseWorkflowTest {
         val graph=compose.activity.daybook; val day=LocalDate.now().toString()
         graph.repository.change { Snapshot(entries=listOf(Entry(day=day,originalText="Public journal fixture"),Entry(day=day,originalText="TOP SECRET JOURNAL",keepLocal=true))) }
         compose.waitUntil(10000) { graph.state.value.entries.size==2 }
-        compose.onNodeWithText("Clean up now").performScrollTo().performClick()
-        compose.onNodeWithText("Review with OpenAI?").assertIsDisplayed()
+        compose.onNodeWithText("Create daily reflection").performScrollTo().performClick()
+        compose.onNodeWithText("Create a reflection with OpenAI?").assertIsDisplayed()
         compose.onNode(hasText("Public journal fixture") and hasAnyAncestor(isDialog())).assertExists()
         compose.onNode(hasText("TOP SECRET JOURNAL") and hasAnyAncestor(isDialog())).assertDoesNotExist()
         val report=SupportDiagnostics.text(compose.activity,graph)

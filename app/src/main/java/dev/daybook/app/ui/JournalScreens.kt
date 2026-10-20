@@ -51,7 +51,7 @@ fun TodayScreen(state: Snapshot, day: String, recording: Boolean, work: WorkInfo
                 Text("Save it while it is fresh.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Button(onClick = if (recording) onStop else onVoice, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(16.dp)) {
                     Icon(if (recording) Icons.Outlined.StopCircle else Icons.Outlined.Mic, null); Spacer(Modifier.width(10.dp))
-                    Text(if (recording) "Stop & save recording" else "Record a thought", style = MaterialTheme.typography.titleMedium)
+                    Text(if (recording) "Save recording" else "Record a thought", style = MaterialTheme.typography.titleMedium)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedButton(onClick = onWrite, Modifier.weight(1f).height(48.dp)) { Icon(Icons.Outlined.EditNote, null); Spacer(Modifier.width(6.dp)); Text("Write") }
@@ -91,7 +91,7 @@ fun TodayScreen(state: Snapshot, day: String, recording: Boolean, work: WorkInfo
             SectionCard {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Outlined.AutoAwesome, null, tint = MaterialTheme.colorScheme.primary); Spacer(Modifier.width(8.dp))
-                    Text("Your daily review", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                    Text("Your daily reflection", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                 }
                 if (latest == null) Text("Turn scattered notes and photos into a readable journal. Your originals stay preserved.")
                 else {
@@ -115,23 +115,23 @@ fun TodayScreen(state: Snapshot, day: String, recording: Boolean, work: WorkInfo
                             }
                         }
                     }
-                    TextButton(onClick = { reviewExpanded = !reviewExpanded }) { Text(if (reviewExpanded) "Hide journal" else "Read cleaned journal") }
+                    TextButton(onClick = { reviewExpanded = !reviewExpanded }) { Text(if (reviewExpanded) "Hide journal" else "Read reflection") }
                     if (latest.provider == "local") Text("On-device text review · attached photos were not analyzed.", style = MaterialTheme.typography.bodySmall)
                     Text("${latest.model} · ${Instant.ofEpochMilli(latest.created).atZone(ZoneId.systemDefault()).toLocalTime().withSecond(0).withNano(0)}", style = MaterialTheme.typography.labelSmall)
                 }
                 when (work?.state) {
                     WorkInfo.State.ENQUEUED, WorkInfo.State.BLOCKED -> Text("Waiting to run · your notes are saved.", style = MaterialTheme.typography.bodySmall)
-                    WorkInfo.State.RUNNING -> { LinearProgressIndicator(Modifier.fillMaxWidth()); Text(work.progress.getString("message") ?: "Cleaning up your day…") }
-                    WorkInfo.State.FAILED -> Text(work.outputData.getString("error") ?: "Cleanup failed. Try again.", color = MaterialTheme.colorScheme.error)
+                    WorkInfo.State.RUNNING -> { LinearProgressIndicator(Modifier.fillMaxWidth()); Text(work.progress.getString("message") ?: "Creating your daily reflection…") }
+                    WorkInfo.State.FAILED -> Text(work.outputData.getString("error") ?: "Could not create reflection. Try again.", color = MaterialTheme.colorScheme.error)
                     else -> Unit
                 }
                 Button(onClick = onCleanup, enabled = entries.isNotEmpty() && work?.state !in setOf(WorkInfo.State.RUNNING, WorkInfo.State.ENQUEUED, WorkInfo.State.BLOCKED)) {
-                    Text(if (latest == null) "Clean up now" else "Refresh review")
+                    Text(if (latest == null) "Create daily reflection" else "Refresh reflection")
                 }
                 val discoveries = state.proposals.count { it.day == day && it.status == "pending" }
                 if (discoveries > 0) TextButton(onClick = onLists) { Text("$discoveries new goal / to-do / idea suggestions") }
                 if (reviews.size > 1) {
-                    TextButton(onClick = { oldReviews = !oldReviews }) { Text(if (oldReviews) "Hide previous reviews" else "${reviews.size - 1} previous reviews") }
+                    TextButton(onClick = { oldReviews = !oldReviews }) { Text(if (oldReviews) "Hide previous reflections" else "${reviews.size - 1} previous reflections") }
                     if (oldReviews) reviews.drop(1).forEach { review ->
                         HorizontalDivider()
                         Text(Instant.ofEpochMilli(review.created).atZone(ZoneId.systemDefault()).toString(), style = MaterialTheme.typography.labelSmall)

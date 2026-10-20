@@ -1,8 +1,8 @@
 # On-device daily reviews
 
-1. Open **Settings → AI daily reviews → On-device**.
+1. Open **Settings → AI reflections → On-device**.
 2. Tap **Download review model**. Allow about 1.2 GB of free storage. The model download is 1.1 GB; it is separate from the English speech model.
-3. Once the model says ready, open a day and tap **Clean up now**, or enable automatic nightly cleanup.
+3. Once the model says ready, open a day and tap **Create daily reflection**, or enable automatic nightly reflections.
 4. Review the cleaned journal and approve any goal progress, new goals, to-dos, or ideas you want to keep.
 
 After download, text review works without internet or an API key. Attached photos are preserved but are not analyzed by this model. Add a text caption for a photo-only day. Choose OpenAI explicitly when you want image understanding; Daybook never falls back to it automatically.
@@ -26,7 +26,7 @@ The ARM64 phone build uses a portable CPU baseline. Local reviews in the x86-64 
 
 ## Repeat the real-model check
 
-Use the isolated verification APK on a disposable emulator. The first opt-in test downloads and verifies the actual model; the second disables emulator connectivity, runs local cleanup on synthetic notes, checks suggestions and original preservation, then exercises whisper.cpp in the same process.
+Use the isolated verification APK on a disposable emulator. The first opt-in test downloads and verifies the actual model; the second disables emulator connectivity, runs local reflections on synthetic notes, checks suggestions and original preservation, then exercises whisper.cpp in the same process.
 
 ```sh
 bash scripts/build.sh :app:assembleVerification :app:assembleVerificationAndroidTest

@@ -28,7 +28,7 @@ The request also includes the title and kind of open, unarchived to-dos and idea
 
 The default model is configurable `gpt-5.4-mini`. The request uses structured outputs, `store: false`, and no tools. Journal text/images are treated as source material rather than instructions. Referenced goal, photo, and entry IDs are validated locally. Generated goal updates require human confirmation.
 
-Disabling cloud consent prevents new OpenAI cleanup requests from starting. Selecting on-device reviews reconfigures unfinished jobs without a network requirement. It cannot retract content from requests already sent. OpenAI's provider retention and abuse-monitoring rules can still apply; `store: false` is not a promise of zero retention. See [OpenAI's data controls](https://developers.openai.com/api/docs/guides/your-data) and [the model documentation](https://developers.openai.com/api/docs/models/gpt-5.4-mini).
+Disabling cloud consent prevents new OpenAI reflections requests from starting. Selecting on-device reviews reconfigures unfinished jobs without a network requirement. It cannot retract content from requests already sent. OpenAI's provider retention and abuse-monitoring rules can still apply; `store: false` is not a promise of zero retention. See [OpenAI's data controls](https://developers.openai.com/api/docs/guides/your-data) and [the model documentation](https://developers.openai.com/api/docs/models/gpt-5.4-mini).
 
 The API key is entered by the user and encrypted at rest using an AES-GCM key generated in Android Keystore. It is sent only as the OpenAI authorization header and is excluded from exports/backups. It is not hardcoded, logged, or committed. This personal-key setup is for a private installation; a public app should use an authenticated server rather than distributing a shared API key.
 
@@ -54,7 +54,7 @@ Android cloud backup and device-transfer rules exclude app data. Uninstalling th
 
 ## Beta recovery and publishing changes
 
-Per-entry on-device and photo-inclusion choices now control future OpenAI cleanup. Manual cleanup previews its eligible content, timestamps, and context. Context derived from private source links is excluded; independently entered goal/list titles remain context. These controls cannot retract an already sent request.
+Per-entry on-device and photo-inclusion choices now control future OpenAI reflections. Manual cleanup previews its eligible content, timestamps, and context. Context derived from private source links is excluded; independently entered goal/list titles remain context. These controls cannot retract an already sent request.
 
 Recently Deleted hides notes/media and source-linked reviews for 30 days. Restoration recovers originals and links; permanent deletion removes media and that day's generated reviews. Confirmed goal activity remains. Expired trash is purged by approximate background maintenance. Full backups include trash; independent backup/export/provider copies are not deleted by live-journal deletion.
 
@@ -63,3 +63,5 @@ Scheduled backups use the same passphrase-encrypted archive as manual full backu
 Backup manifests now use version 2; version 1 remains readable. Credentials and model files remain excluded. Restore remaps private media paths before its database commit; concurrent recording creation, imports, permanent deletion, and backup/restore share a media operation lock. Transcription rejects stale attachment paths after restore.
 
 Feedback is a draft shared through a user-selected app. No diagnostic upload is automatic. A public release needs real developer/contact details and a hosted policy; the local beta includes the readable policy and a publishing gate that rejects missing metadata.
+
+Recording discard is permanent for the current unfinished capture: its audio, live text and draft revisions are removed after the microphone closes. Earlier notes and reflections remain. Ordinary deletion of a saved note still uses Recently Deleted.

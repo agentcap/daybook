@@ -34,10 +34,10 @@ object LocalEngine : LocalTextEngine {
 class LocalCleanupClient(private val file: File, private val ready: () -> Boolean,
     private val engine: LocalTextEngine = LocalEngine) {
     suspend fun generate(input: ReviewInput): ReviewDraft {
-        check(ready()) { "Download the on-device review model in Settings → AI daily reviews first. Your notes are saved." }
+        check(ready()) { "Download the on-device review model in Settings → AI reflections first. Your notes are saved." }
         val text = LocalReviewProtocol.textInput(input)
         val payload = LocalReviewProtocol.payload(text)
-        require(payload.toByteArray().size <= 70_000) { "This day is too long for on-device cleanup. Use OpenAI or a day with fewer words." }
+        require(payload.toByteArray().size <= 70_000) { "This day is too long for on-device reflections. Use OpenAI or a day with fewer words." }
         val output = engine.generate(file, LocalReviewProtocol.instructions(), payload, LocalReviewProtocol.grammar(text))
         currentCoroutineContext().ensureActive()
         return try { LocalReviewProtocol.parse(output, text) }

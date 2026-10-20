@@ -58,7 +58,7 @@ private fun clockText(value: String) = LocalTime.parse(value).format(DateTimeFor
             }
         }
     }
-    TimeSetting("Nightly cleanup", s.cleanupTime) { onChange(s.copy(cleanupTime = it)) }
+    TimeSetting("Nightly reflection", s.cleanupTime) { onChange(s.copy(cleanupTime = it)) }
     Text("Local time · no reminders during quiet hours.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 @Composable fun ToggleRow(title: String, subtitle: String, checked: Boolean, onChange: (Boolean) -> Unit, enabled: Boolean = true) {
@@ -81,7 +81,7 @@ private fun clockText(value: String) = LocalTime.parse(value).format(DateTimeFor
             Text("Choose your rhythm", style = MaterialTheme.typography.titleLarge)
             ScheduleFields(s) { s = it }
             ToggleRow("Journal reminders", "Gentle check-ins during waking hours.", s.reminders, onChange = { s = s.copy(reminders = it) })
-            ToggleRow("Automatic daily cleanup", "Runs around your chosen nightly time.", s.autoCleanup, onChange = { s = s.copy(autoCleanup = it) })
+            ToggleRow("Automatic daily reflections", "Runs around your chosen nightly time.", s.autoCleanup, onChange = { s = s.copy(autoCleanup = it) })
         }
         SectionCard {
             Text("Your voice stays here", style = MaterialTheme.typography.titleLarge)
@@ -91,8 +91,8 @@ private fun clockText(value: String) = LocalTime.parse(value).format(DateTimeFor
         }
         SectionCard {
             Text("A little help at day’s end", style = MaterialTheme.typography.titleLarge)
-            Text("Choose OpenAI or on-device text cleanup in Settings. OpenAI cleanup sends your selected day’s note text and all journal-attached photos to OpenAI using your own API key. Audio is never uploaded. AI suggestions only affect goals after you confirm.")
-            ToggleRow("Allow OpenAI daily reviews", "You can change this and enter your key in Settings.", s.cloudConsent, onChange = { s = s.copy(cloudConsent = it) })
+            Text("Choose OpenAI or on-device reflections in Settings. OpenAI reflections send eligible note text and journal-attached photos using your own API key, following each note’s privacy choices. Audio is never uploaded. AI suggestions only affect goals after you confirm.")
+            ToggleRow("Allow OpenAI reflections", "You can change this and enter your key in Settings.", s.cloudConsent, onChange = { s = s.copy(cloudConsent = it) })
             Text("API requests disable response storage, but provider retention rules can still apply.", style = MaterialTheme.typography.bodySmall)
         }
         if (error.isNotBlank()) Text(error, color = MaterialTheme.colorScheme.error)
@@ -156,7 +156,7 @@ fun SettingsScreen(settings: Settings, hasKey: Boolean, modelReady: Boolean, mod
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 SettingsLink(Icons.Outlined.MicNone, "Voice & offline speech", if (modelReady) "English · ready offline" else "Download speech model · 141 MB") { page = "voice" }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                SettingsLink(Icons.Outlined.AutoAwesome, "AI daily reviews", if (settings.reviewProvider == "local") (if (localReady) "On-device · ready offline" else "On-device · download model to start") else if (!hasKey) "Add your OpenAI key to get started" else if (settings.cloudConsent) "Ready · ${if (settings.autoCleanup) "nightly & on demand" else "on demand"}" else "Key saved · reviews paused") { page = "ai" }
+                SettingsLink(Icons.Outlined.AutoAwesome, "AI reflections", if (settings.reviewProvider == "local") (if (localReady) "On-device · ready offline" else "On-device · download model to start") else if (!hasKey) "Add your OpenAI key to get started" else if (settings.cloudConsent) "Ready · ${if (settings.autoCleanup) "nightly & on demand" else "on demand"}" else "Key saved · reviews paused") { page = "ai" }
             }
             SectionCard {
                 Text("YOUR JOURNAL", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
@@ -217,21 +217,21 @@ fun SettingsScreen(settings: Settings, hasKey: Boolean, modelReady: Boolean, mod
                 }
                 "ai" -> {
                     SectionCard {
-                        Text("Where should reviews run?", style = MaterialTheme.typography.titleMedium)
+                        Text("Where should reflections run?", style = MaterialTheme.typography.titleMedium)
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             FilterChip(selected = settings.reviewProvider == "openai", enabled = !saving,
                                 onClick = { save(settings.copy(reviewProvider = "openai")) }, label = { Text("OpenAI") })
                             FilterChip(selected = settings.reviewProvider == "local", enabled = !saving,
                                 onClick = { save(settings.copy(reviewProvider = "local")) }, label = { Text("On-device") })
                         }
-                        Text(if (settings.reviewProvider == "local") "Text cleanup and suggestions stay on this phone. No API key is needed. Photos remain attached but are not analyzed."
+                        Text(if (settings.reviewProvider == "local") "Reflections and suggestions stay on this phone. No API key is needed. Photos remain attached but are not analyzed."
                             else "Review text and attached photos with your own OpenAI key. Audio stays on this phone.", style = MaterialTheme.typography.bodyMedium)
                     }
                     SectionCard {
-                        if (settings.reviewProvider == "openai") ToggleRow("Allow OpenAI reviews", "Sends this day’s text and attached photos, with existing goals and list titles for context. Audio stays on your phone.", settings.cloudConsent, { save(settings.copy(cloudConsent = it)) }, !saving)
-                        ToggleRow("Cleanup only while charging", "Daily reviews wait for a charger, including manual requests.", settings.cleanupChargingOnly, { save(settings.copy(cleanupChargingOnly = it)) }, !saving)
-                        ToggleRow("Automatic nightly cleanup", if (settings.reviewProvider == "local") "Runs on this phone after downloading the review model." else "Uses your saved key and internet connection.", settings.autoCleanup, { save(settings.copy(autoCleanup = it)) }, !saving)
-                        TimeSetting("Nightly review time", settings.cleanupTime) { save(settings.copy(cleanupTime = it)) }
+                        if (settings.reviewProvider == "openai") ToggleRow("Allow OpenAI reflections", "Sends this day’s text and attached photos, with existing goals and list titles for context. Audio stays on your phone.", settings.cloudConsent, { save(settings.copy(cloudConsent = it)) }, !saving)
+                        ToggleRow("Create reflections only while charging", "Daily reviews wait for a charger, including manual requests.", settings.cleanupChargingOnly, { save(settings.copy(cleanupChargingOnly = it)) }, !saving)
+                        ToggleRow("Automatic nightly reflections", if (settings.reviewProvider == "local") "Runs on this phone after downloading the review model." else "Uses your saved key and internet connection.", settings.autoCleanup, { save(settings.copy(autoCleanup = it)) }, !saving)
+                        TimeSetting("Nightly reflection time", settings.cleanupTime) { save(settings.copy(cleanupTime = it)) }
                         Text("Originals are preserved. Review new goals, list items, progress, and calorie estimates before applying them.", style = MaterialTheme.typography.bodySmall)
                     }
                     if (settings.reviewProvider == "local") {
@@ -239,7 +239,7 @@ fun SettingsScreen(settings: Settings, hasKey: Boolean, modelReady: Boolean, mod
                             Icon(Icons.Outlined.PhoneAndroid, null, Modifier.size(32.dp), tint = MaterialTheme.colorScheme.primary)
                             Text("Qwen 2.5 · 1.5B", style = MaterialTheme.typography.titleLarge)
                             Text(if (localReady) "Review model ready · works in airplane mode" else "One-time download · 1.1 GB", style = MaterialTheme.typography.titleSmall)
-                            Text("Creates a cleaned journal, summary, and reviewable suggestions from note text. Best for shorter days; larger days can take a few minutes and use more battery.", style = MaterialTheme.typography.bodyMedium)
+                            Text("Creates a polished journal, summary, and reviewable suggestions from note text. Best for shorter days; larger days can take a few minutes and use more battery.", style = MaterialTheme.typography.bodyMedium)
                             when (localWork?.state) {
                                 WorkInfo.State.RUNNING -> {
                                     LinearProgressIndicator(progress = { localWork.progress.getInt("percent", 0) / 100f }, modifier = Modifier.fillMaxWidth())
@@ -273,7 +273,7 @@ fun SettingsScreen(settings: Settings, hasKey: Boolean, modelReady: Boolean, mod
                     Icon(Icons.Outlined.Fingerprint, null, Modifier.size(42.dp), tint = MaterialTheme.colorScheme.primary)
                     ToggleRow("Fingerprint & screen lock", "Ask automatically whenever you open Daybook.", settings.biometric, { save(settings.copy(biometric = it)) }, !saving)
                     Text("Use an enrolled fingerprint or your device PIN, pattern, or password. If you dismiss the prompt, your journal stays locked until you retry.")
-                    Text("Scheduled cleanup and an ongoing recording can continue while your journal is locked.", style = MaterialTheme.typography.bodySmall)
+                    Text("Scheduled reflections and an ongoing recording can continue while your journal is locked.", style = MaterialTheme.typography.bodySmall)
                     HorizontalDivider()
                     Text("Your memories stay with you", style = MaterialTheme.typography.titleMedium)
                     Text("Original audio and photos stay until you permanently delete their note. Recently Deleted keeps notes recoverable for 30 days. Automatic Android cloud backup and device transfer are disabled. Use an encrypted backup before uninstalling.", style = MaterialTheme.typography.bodySmall)
@@ -332,7 +332,7 @@ fun SettingsScreen(settings: Settings, hasKey: Boolean, modelReady: Boolean, mod
         Spacer(Modifier.height(12.dp))
     }
     if (deleteLocal) AlertDialog(onDismissRequest = { deleteLocal = false }, title = { Text("Remove review model?") },
-        text = { Text("Your notes and reviews stay saved. Download it again before using on-device cleanup.") },
+        text = { Text("Your notes and reviews stay saved. Download it again before using on-device reflections.") },
         confirmButton = { TextButton(onClick = { deleteLocal = false; task("Review model removed") { onLocalDelete() } }) { Text("Remove model") } },
         dismissButton = { TextButton(onClick = { deleteLocal = false }) { Text("Keep model") } })
     if (deleteModel) AlertDialog(onDismissRequest = { deleteModel = false }, title = { Text("Remove speech model?") },

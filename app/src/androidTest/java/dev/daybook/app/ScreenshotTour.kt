@@ -63,7 +63,7 @@ class ScreenshotTour {
         runBlocking { graph.repository.change { state.copy(reviews = listOf(review)) }; graph.preferences.save(Settings(onboarded = true, reminders = false, autoCleanup = false)) }
         compose.waitUntil(10000) { graph.state.value.entries.size == 3 }
         compose.waitUntil(10000) { compose.onAllNodesWithText("Your day, captured.").fetchSemanticsNodes().isNotEmpty() }; shot("02-today")
-        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Your daily review"))
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Your daily reflection"))
         shot("03-review")
         compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Salmon, rice and greens for lunch. Around 780 calories."))
         shot("08-moments")
@@ -102,7 +102,7 @@ class ScreenshotTour {
         compose.onNodeWithText("All settings").performScrollTo().performClick()
         compose.onNodeWithText("Home-screen recording").performScrollTo().performClick(); shot("11-widget")
         compose.onNodeWithText("All settings").performScrollTo().performClick()
-        compose.onNodeWithText("AI daily reviews").performScrollTo().performClick()
+        compose.onNodeWithText("AI reflections").performScrollTo().performClick()
         compose.onNodeWithText("On-device", substring = false).performClick()
         compose.waitUntil(10000) { graph.settings.value.reviewProvider == "local" }
         shot("19-review-provider")

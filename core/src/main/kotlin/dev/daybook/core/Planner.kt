@@ -36,7 +36,7 @@ object PlannerRules {
     fun approve(state: Snapshot, id: String, title: String, details: String, goal: Goal? = null): Snapshot {
         val p = state.proposals.first { it.id == id }
         require(p.status == "pending") { "This suggestion has already been handled." }
-        require(current(state, p)) { "The supporting notes changed. Refresh the review before approving." }
+        require(current(state, p)) { "The supporting notes changed. Refresh the reflection before approving." }
         val edited = p.item.copy(title = title.trim(), details = details.trim())
         validate(edited)
         require(!alreadyExists(state, edited)) { "An item with this title already exists." }

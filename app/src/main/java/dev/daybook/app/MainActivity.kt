@@ -13,6 +13,7 @@ import androidx.lifecycle.ViewModel
 import dev.daybook.app.security.JournalLockSession
 import dev.daybook.app.ui.DaybookRoot
 import dev.daybook.app.widget.CaptureIntents
+import dev.daybook.app.capture.RecordingService
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class JournalLockViewModel : ViewModel() { val session = JournalLockSession() }
@@ -31,14 +32,19 @@ class MainActivity : FragmentActivity() {
                 override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) { journalLock.finish(true) }
                 override fun onAuthenticationError(code: Int, message: CharSequence) { journalLock.finish(false) }
             })
-        capture.value = savedInstanceState?.getString("pendingCapture") ?: CaptureIntents.captureFrom(this, intent)
+        capture.value = savedInstanceState?.getString("pendingCapture") ?: pendingCapture(intent)
         intent.removeExtra("capture"); intent.removeExtra("widget_token")
         setContent { DaybookRoot(daybook, this) }
     }
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        capture.value = CaptureIntents.captureFrom(this, intent)
+        capture.value = pendingCapture(intent)
         intent.removeExtra("capture"); intent.removeExtra("widget_token")
+    }
+    private fun pendingCapture(intent: Intent): String {
+        val request = CaptureIntents.captureFrom(this, intent)
+        // Decide at intent receipt; a delayed UI effect must not replay an existing capture after it ends.
+        return if (request in setOf("record", "voice") && RecordingService.active.value) "show_recording" else request
     }
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putString("pendingCapture", capture.value)

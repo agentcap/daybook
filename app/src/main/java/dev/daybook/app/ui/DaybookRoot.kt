@@ -94,6 +94,9 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
             val active by RecordingService.active.collectAsState()
             val recordingSession by RecordingService.session.collectAsState()
             LaunchedEffect(active) { if (active) recordingSheet = true }
+            LaunchedEffect(recordingSession.phase, active) {
+                if (!active && recordingSession.phase == "discarded") { recordingSheet = false; snacks.showSnackbar("Recording discarded") }
+            }
             val recordingError by RecordingService.lastError.collectAsState()
             LaunchedEffect(recordingError) { recordingError?.let { snacks.showSnackbar(it); RecordingService.lastError.value = null } }
             val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
@@ -153,6 +156,7 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
                     tab = 0; day = LocalDate.now().toString()
                     when (capture) {
                         "record", "voice" -> startRecording()
+                        "show_recording" -> recordingSheet = true
                         "write" -> write = true
                         "photo" -> photo = true
                     }
@@ -244,7 +248,8 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
                     onStop = { activity.startService(Intent(activity, RecordingService::class.java).setAction(RecordingService.STOP)) },
                     onDismiss = { recordingSheet = false },
                     onPause = { activity.startService(Intent(activity, RecordingService::class.java).setAction(RecordingService.PAUSE)) },
-                    onBookmark = { activity.startService(Intent(activity, RecordingService::class.java).setAction(RecordingService.BOOKMARK)) }, reduceMotion = reducedMotion)
+                    onBookmark = { activity.startService(Intent(activity, RecordingService::class.java).setAction(RecordingService.BOOKMARK)) }, reduceMotion = reducedMotion,
+                    onDiscard = { activity.startService(Intent(activity, RecordingService::class.java).setAction(RecordingService.DISCARD)) })
             }
             if (photo) AlertDialog(onDismissRequest = { photo = false }, title = { Text("Add a photo") },
                 text = { Text("Attach a meal, a place, or something you want to remember. Photos can be included in OpenAI reviews. Open a saved note to keep it on-device or exclude its photos.") },

@@ -17,10 +17,10 @@ Pause/resume controls are available in the recording screen and notification. Pa
 
 Microphone silencing can pause recording; interruptions preserve audio. Physical call/Bluetooth behavior remains part of phone testing. Saved audio can exist before a final transcript. Processing & downloads shows queued/running/failing jobs with cancellation and retry, plus model download states. Cancelling inference prevents its result from replacing saved content.
 
-Wi-Fi-only downloads use Android's unmetered-network constraint and apply when starting/resuming downloads. Cleanup only while charging applies to manual and scheduled daily reviews. Approximate background timing remains subject to Android/Samsung restrictions.
+Wi-Fi-only downloads use Android's unmetered-network constraint and apply when starting/resuming downloads. Create reflections only while charging applies to manual and scheduled daily reviews. Approximate background timing remains subject to Android/Samsung restrictions.
 
 ## Cloud privacy
-Inside each note, Keep this entry on-device excludes that note and its photos from future OpenAI reviews. Photo inclusion can be disabled separately. Local cleanup can still use the text. Manual OpenAI cleanup previews current eligible text/photos plus goal, activity, and list-title context. Nightly cleanup follows saved choices and explicit cloud consent. Entry times, zones, and record references support source links.
+Inside each note, Keep this entry on-device excludes that note and its photos from future OpenAI reviews. Photo inclusion can be disabled separately. Local cleanup can still use the text. Manual OpenAI reflections previews current eligible text/photos plus goal, activity, and list-title context. Nightly reflections follows saved choices and explicit cloud consent. Entry times, zones, and record references support source links.
 
 These controls do not retract past requests. Text entered independently as goals or list titles is still context. Derived records with private source references are excluded. OpenAI storage/retention caveats remain in the policy.
 

@@ -95,7 +95,7 @@ import java.time.*
                     }
                     "trash" -> {
                         PageTitle("A second chance", "Recently Deleted")
-                        Text("Restore a note or remove it permanently. Automatic cleanup runs after 30 days when Android allows background work.")
+                        Text("Restore a note or remove it permanently. Expired notes are removed after 30 days when Android allows background work.")
                         TextButton(onClick = { page = "backup" }) { Text("Backups & recovery") }
                         val deleted = raw.entries.filter { it.deletedAt > 0 }.sortedByDescending { it.deletedAt }
                         if (deleted.isEmpty()) Text("No deleted moments.")
@@ -116,7 +116,7 @@ import java.time.*
                         SectionCard {
                             ToggleRow("Wi-Fi-only model downloads", "Uses an unmetered connection. Applies when starting or resuming a download.",
                                 settings.wifiOnlyDownloads, { task { graph.saveSettings(settings.copy(wifiOnlyDownloads = it)) } })
-                            ToggleRow("Cleanup only while charging", "Daily reviews wait for a charger, including manual requests.",
+                            ToggleRow("Create reflections only while charging", "Daily reviews wait for a charger, including manual requests.",
                                 settings.cleanupChargingOnly, { task { graph.saveSettings(settings.copy(cleanupChargingOnly = it)) } })
                         }
                     }
@@ -126,7 +126,7 @@ import java.time.*
                         SectionCard {
                             Text("Private by choice", style = MaterialTheme.typography.titleLarge)
                             Text("Set ‘Keep this entry on-device’ inside a note to exclude it from future OpenAI requests. You can also exclude a note’s photos. Local reviews and your encrypted backups can still include it.")
-                            Text("Manual OpenAI cleanup shows a preview before sending. Automatic nightly reviews use your saved note choices and cloud consent. Previously sent content cannot be retracted.")
+                            Text("Manual OpenAI reflections show a preview before sending. Automatic nightly reviews use your saved note choices and cloud consent. Previously sent content cannot be retracted.")
                         }
                         SectionCard {
                             Text("Privacy policy", style = MaterialTheme.typography.titleLarge)
@@ -203,8 +203,8 @@ import java.time.*
             Text("Daily review · $day", style = MaterialTheme.typography.titleSmall)
             Text(if (work.state == WorkInfo.State.RUNNING) work.progress.getString("message") ?: "Creating review…" else if (work.state == WorkInfo.State.FAILED) work.outputData.getString("error") ?: "Review needs attention"
                 else if (settings.cleanupChargingOnly) "Queued · connect a charger" else "Queued · waiting for Android or a connection")
-            if (!work.state.isFinished) TextButton(onClick = { WorkManager.getInstance(activity).cancelUniqueWork("cleanup-$day") }) { Text("Cancel review") }
-            else OutlinedButton(onClick = { graph.cleanup.enqueue(day, force = true, provider = settings.reviewProvider, replace = true, charging = settings.cleanupChargingOnly) }) { Text("Retry review") }
+            if (!work.state.isFinished) TextButton(onClick = { WorkManager.getInstance(activity).cancelUniqueWork("cleanup-$day") }) { Text("Cancel reflection") }
+            else OutlinedButton(onClick = { graph.cleanup.enqueue(day, force = true, provider = settings.reviewProvider, replace = true, charging = settings.cleanupChargingOnly) }) { Text("Retry reflection") }
         }
     }
     listOf("speech-model" to "English speech · 141 MB", dev.daybook.app.ai.LocalModel.WORK to "Local reviews · 1.1 GB").forEach { (name, title) ->
@@ -304,7 +304,7 @@ private fun countLabel(count: Int, singular: String) = "$count $singular" + if (
     val entries = ReviewPrivacy.entries(state, day, "openai")
     val photos = ReviewPrivacy.photos(state, day)
     val context = ReviewPrivacy.cloudContext(state)
-    AlertDialog(onDismissRequest = onDismiss, title = { Text("Review with OpenAI?") }, text = {
+    AlertDialog(onDismissRequest = onDismiss, title = { Text("Create a reflection with OpenAI?") }, text = {
         Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("This sends the content below directly to OpenAI using your API key. Audio stays on this phone. Provider retention rules can apply.")
             Text("${entries.size} notes · ${photos.size} photos · $day", style = MaterialTheme.typography.titleSmall)
@@ -318,10 +318,10 @@ private fun countLabel(count: Int, singular: String) = "$count $singular" + if (
             Text("Open list titles", style = MaterialTheme.typography.titleSmall)
             context.items.filter { !it.archived && !it.done }.forEach { Text(it.kind + " · " + it.title, style = MaterialTheme.typography.bodySmall) }
             Text("Edit a note to keep it on-device or exclude its photos. Nightly reviews follow those saved choices.", style = MaterialTheme.typography.bodySmall)
-            if (!allowed) Text("Enable Allow OpenAI reviews in Settings before continuing.")
-            if (entries.isEmpty()) Text("No eligible notes. Choose on-device cleanup or change note privacy.")
+            if (!allowed) Text("Enable Allow OpenAI reflections in Settings before continuing.")
+            if (entries.isEmpty()) Text("No eligible notes. Choose on-device reflections or change note privacy.")
         }
-    }, confirmButton = { if (allowed) Button(onClick = onConfirm, enabled = entries.isNotEmpty()) { Text("Send for cleanup") }
+    }, confirmButton = { if (allowed) Button(onClick = onConfirm, enabled = entries.isNotEmpty()) { Text("Create reflection") }
         else TextButton(onClick = onSettings) { Text("Open Settings") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } })
 }

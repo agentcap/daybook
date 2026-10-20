@@ -10,7 +10,7 @@ Full description:
 Daybook gives everyday moments a place to stay. Record a thought, write a note, or attach a photo, then return to a chronological journal of your day.
 
 VOICE, EVEN OFFLINE
-Download the English speech model once, then capture voice notes and see draft text without an internet connection. Pause and resume recordings, mark moments with audio bookmarks, and tap saved transcript segments to hear the original audio. Recording can continue with the screen locked, with a notification to stop and save. Each note supports up to 30 minutes of captured audio.
+Download the English speech model once, then capture voice notes and see draft text without an internet connection. Pause, resume, or discard a recording, mark moments with audio bookmarks, and tap saved transcript segments to hear the original audio. Recording can continue with the screen locked, with a notification to stop and save. Each note supports up to 30 minutes of captured audio.
 
 YOUR ORIGINALS, PRESERVED
 Keep original audio, photos, note text, edits, and review history. Browse by day, search locally, or use the calendar and statistics. Recently Deleted keeps notes recoverable for 30 days before background maintenance removes them.
@@ -19,7 +19,7 @@ GOALS, TASKS AND IDEAS
 Create daily, weekly or one-time goals with checkboxes or numeric targets. Log partial effort and see how many distinct goals you worked on. Keep to-dos and ideas in separate lists. AI suggestions require your approval before they create goals or change progress.
 
 REFLECT YOUR WAY
-Choose on-device text cleanup after a separate model download, or optional OpenAI reviews using your own API key. OpenAI can review eligible attached photos; the local model reviews text only. Keep selected entries on-device and choose whether a note's photos can be included in future cloud reviews. Manual cloud cleanup previews its input. Weekly reflections bring together journal moments and confirmed activity.
+Choose on-device text reflections after a separate model download, or optional OpenAI reviews using your own API key. OpenAI can review eligible attached photos; the local model reviews text only. Keep selected entries on-device and choose whether a note's photos can be included in future cloud reviews. Manual cloud reflections previews its input. Weekly reflections bring together journal moments and confirmed activity.
 
 MAKE IT YOURS
 Choose light or dark themes, approximate reminders, quiet hours, optional biometric/device-credential lock, reduced animations, and compact dark home-screen capture widgets.

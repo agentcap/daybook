@@ -17,6 +17,9 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
@@ -25,9 +28,10 @@ import androidx.compose.ui.window.DialogProperties
 import dev.daybook.app.capture.RecordingSession
 
 @Composable fun RecordingScreen(session: RecordingSession, active: Boolean, modelReady: Boolean,
-    onStart: () -> Unit, onStop: () -> Unit, onDismiss: () -> Unit, onPause: () -> Unit = {}, onBookmark: () -> Unit = {}, reduceMotion: Boolean = false) {
+    onStart: () -> Unit, onStop: () -> Unit, onDismiss: () -> Unit, onPause: () -> Unit = {}, onBookmark: () -> Unit = {}, reduceMotion: Boolean = false, onDiscard: () -> Unit = {}) {
     val colors = MaterialTheme.colorScheme
     val scroll = rememberScrollState()
+    var confirmDiscard by remember(session.entryId) { mutableStateOf(false) }
     LaunchedEffect(session.transcript) { kotlinx.coroutines.delay(80); if (reduceMotion) scroll.scrollTo(scroll.maxValue) else scroll.animateScrollTo(scroll.maxValue) }
     val level by animateFloatAsState(if (session.phase == "recording") session.level else 0f, if (reduceMotion) snap() else tween(140), label = "microphone level")
     val alpha = if (reduceMotion || !active || session.phase != "recording") 1f else {
@@ -58,7 +62,7 @@ import dev.daybook.app.capture.RecordingSession
                 SectionCard {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Box(Modifier.size(8.dp).alpha(if (active && session.phase == "recording" && !reduceMotion) alpha else 1f).background(if (active) colors.error else colors.primary, CircleShape))
-                        Text(when(session.phase) { "starting" -> "Starting…"; "paused" -> "Paused"; "saving" -> "Saving your audio…"; "saved" -> "Saved on this phone"; "error" -> "Needs attention"; else -> if (active) "Listening" else "Ready when you are" },
+                        Text(when(session.phase) { "starting" -> "Starting…"; "paused" -> "Paused"; "saving" -> "Saving your audio…"; "discarding" -> "Discarding…"; "discarded" -> "Recording discarded"; "saved" -> "Saved on this phone"; "error" -> "Needs attention"; else -> if (active) "Listening" else "Ready when you are" },
                             Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
                         Text("%02d:%02d".format(session.elapsedMs / 60000, (session.elapsedMs / 1000) % 60), fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.titleLarge)
                     }
@@ -98,14 +102,27 @@ import dev.daybook.app.capture.RecordingSession
                             Icon(Icons.Outlined.BookmarkAdd, null); Spacer(Modifier.width(6.dp)); Text("Mark · ${session.bookmarks}")
                         }
                     }
-                    Button(onClick = onStop, enabled = session.phase !in setOf("starting", "saving"), modifier = Modifier.fillMaxWidth().height(54.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = colors.errorContainer, contentColor = colors.onErrorContainer)) {
-                        Icon(Icons.Outlined.StopCircle, null); Spacer(Modifier.width(10.dp)); Text("Stop & save recording")
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Button(onClick = onStop, enabled = session.phase in setOf("recording", "paused"),
+                            modifier = Modifier.weight(1f).heightIn(min = 54.dp).semantics { contentDescription = "Save recording" }) {
+                            Icon(Icons.Outlined.StopCircle, null); Spacer(Modifier.width(6.dp)); Text(if (LocalDensity.current.fontScale > 1.3f) "Save" else "Save recording")
+                        }
+                        OutlinedButton(onClick = { confirmDiscard = true }, enabled = session.phase in setOf("starting", "recording", "paused"),
+                            modifier = Modifier.weight(1f).heightIn(min = 54.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.error)) {
+                            Icon(Icons.Outlined.DeleteOutline, null); Spacer(Modifier.width(6.dp)); Text("Discard")
+                        }
                     }
                     Text("You can lock the screen or close this view. Stop from the recording notification.", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
-                } else if (session.phase == "saved") Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("Back to my day") }
+                } else if (session.phase in setOf("saved", "discarded")) Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("Back to my day") }
                 else Button(onClick = onStart, modifier = Modifier.fillMaxWidth().height(52.dp)) { Icon(Icons.Outlined.Mic, null); Spacer(Modifier.width(8.dp)); Text("Start recording") }
             }
         }
     }
+    if (confirmDiscard && active) AlertDialog(onDismissRequest = { confirmDiscard = false },
+        title = { Text("Discard this recording?") },
+        text = { Text("Delete this recording’s audio and live transcript? It will not be added to your journal. Earlier entries stay saved.") },
+        confirmButton = { TextButton(onClick = { confirmDiscard = false; onDiscard() },
+            enabled = session.phase in setOf("starting", "recording", "paused")) { Text("Discard recording", color = colors.error) } },
+        dismissButton = { TextButton(onClick = { confirmDiscard = false }) { Text("Keep recording") } })
 }

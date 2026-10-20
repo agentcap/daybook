@@ -76,7 +76,7 @@ class CaptureAndSettingsTest {
     @Test fun apiKeyStatusUpdatesAfterSaveAndRemoval() = runBlocking<Unit> {
         compose.activity.daybook.keys.save("")
         compose.onNodeWithText("Settings", substring = false).performClick()
-        compose.onNodeWithText("AI daily reviews").performClick()
+        compose.onNodeWithText("AI reflections").performClick()
         compose.onNodeWithText("OpenAI API key").performScrollTo().performTextInput("synthetic-api-key-for-ui-testing")
         compose.runOnUiThread {
             compose.activity.getSystemService(android.view.inputmethod.InputMethodManager::class.java)

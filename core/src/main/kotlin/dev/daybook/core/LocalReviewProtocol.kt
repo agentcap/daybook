@@ -8,7 +8,7 @@ import com.google.gson.JsonParser
 object LocalReviewProtocol {
     const val MODEL_NAME = "Qwen2.5-1.5B-Instruct Q4_K_M"
     fun textInput(input: ReviewInput): ReviewInput {
-        require(input.entries.any { it.text.isNotBlank() }) { "On-device cleanup needs some text. Add a note or photo caption, or choose OpenAI to review photos." }
+        require(input.entries.any { it.text.isNotBlank() }) { "On-device reflections needs some text. Add a note or photo caption, or choose OpenAI to review photos." }
         return input.copy(photos = emptyList())
     }
     fun instructions() = """

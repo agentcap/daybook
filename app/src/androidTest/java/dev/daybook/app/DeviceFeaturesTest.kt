@@ -96,7 +96,7 @@ class DeviceFeaturesTest {
             compose.onNodeWithText("Today", substring = false).performClick()
             compose.onNodeWithText("View live transcript").performScrollTo().performClick()
             assertEquals(id, RecordingService.session.value.entryId)
-            compose.onNode(hasText("Stop & save recording") and hasAnyAncestor(isDialog())).performClick()
+            compose.onNode(hasText("Save recording") and hasAnyAncestor(isDialog())).performClick()
             compose.waitUntil(15000) { !RecordingService.active.value }
             compose.onNodeWithText("A thought, kept.").assertIsDisplayed()
             compose.onNodeWithText("Back to my day").performClick()

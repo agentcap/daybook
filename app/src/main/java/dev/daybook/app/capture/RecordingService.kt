@@ -21,9 +21,20 @@ class RecordingService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     @Volatile private var requestedStop = false
     @Volatile private var requestedPause = false
+    @Volatile private var requestedDiscard = false
+    private val finishLock = Any()
     private var task: Job? = null
     override fun onBind(intent: Intent?) = null
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == DISCARD) {
+            synchronized(finishLock) {
+                if (task?.isActive == true && session.value.phase in setOf("starting", "recording", "paused")) {
+                    requestedDiscard = true; requestedStop = true
+                    session.value = session.value.copy(phase = "discarding", level = 0f, previewStatus = "Discarding your recording…")
+                } else if (task?.isActive != true) stopSelf(startId)
+            }
+            return START_NOT_STICKY
+        }
         if (intent?.action == STOP) { requestedStop = true; if (task?.isActive != true) stopSelf(startId); return START_NOT_STICKY }
         if (intent?.action in setOf(PAUSE, BOOKMARK)) {
             if (task?.isActive != true) { stopSelf(startId); return START_NOT_STICKY }
@@ -35,14 +46,14 @@ class RecordingService : Service() {
                         if (it.id == mark.entryId && it.status == "recording" && it.bookmarks.size < 1000)
                             it.copy(bookmarks = it.bookmarks + AudioBookmark(ms = mark.elapsedMs, label = "Bookmark ${it.bookmarks.size + 1}")) else it
                     }) }
-                    session.value = session.value.copy(bookmarks = session.value.bookmarks + 1)
+                    if (session.value.entryId == mark.entryId) session.value = session.value.copy(bookmarks = session.value.bookmarks + 1)
                 }
             }
             return START_NOT_STICKY
         }
         if (task?.isActive == true) return START_NOT_STICKY
         notifyRecording(false, initial = true)
-        requestedStop = false; requestedPause = false; lastError.value = null; session.value = RecordingSession(phase = "starting"); active.value = true
+        requestedStop = false; requestedPause = false; requestedDiscard = false; lastError.value = null; session.value = RecordingSession(phase = "starting"); active.value = true
         task = scope.launch { record(intent?.getStringExtra("day") ?: java.time.LocalDate.now().toString()) }
         return START_NOT_STICKY
     }
@@ -128,37 +139,70 @@ class RecordingService : Service() {
                 Wav.header(out, bytes); out.fd.sync()
             }
             runCatching { audio.stop() }; callback?.let { audio.unregisterAudioRecordingCallback(it) }; audio.release(); audio = null
-            session.value = session.value.copy(phase = "saving", level = 0f)
+            val discard = synchronized(finishLock) {
+                session.value = session.value.copy(phase = if (requestedDiscard) "discarding" else "saving", level = 0f)
+                requestedDiscard
+            }
             preview.stop(); preview = null
+            if (discard) return
             val id = entry.id
             graph.repository.change { s -> s.copy(entries = s.entries.map { if (it.id == id) it.copy(status = "pending") else it },
                 attachments = s.attachments.map { if (it.id == savedAttachment.id) it.copy(bytes = file.length()) else it }) }
             graph.transcriptions.enqueue(id)
             session.value = session.value.copy(phase = "saved", previewStatus = "Saved. The full transcript is being refined on this phone.")
         } catch (e: Exception) {
-            lastError.value = (e.message ?: "Recording could not start. Please try again.").take(500)
-            session.value = session.value.copy(phase = "error", previewStatus = lastError.value.orEmpty())
-            val id = entry?.id
-            if (attachment != null) runCatching {
-                val saved = attachment
-                val file = graph.media.file(saved.path)
-                if (file.length() > 44) Wav.repair(file)
-                graph.repository.change { state -> state.copy(attachments = state.attachments.map { if (it.id == saved.id) it.copy(bytes = file.length()) else it }) }
+            if (!requestedDiscard) {
+                lastError.value = (e.message ?: "Recording could not start. Please try again.").take(500)
+                session.value = session.value.copy(phase = "error", previewStatus = lastError.value.orEmpty())
+                val id = entry?.id
+                if (attachment != null) runCatching {
+                    val saved = attachment
+                    val file = graph.media.file(saved.path)
+                    if (file.length() > 44) Wav.repair(file)
+                    graph.repository.change { state -> state.copy(attachments = state.attachments.map { if (it.id == saved.id) it.copy(bytes = file.length()) else it }) }
+                }
+                if (id != null) graph.repository.change { s -> s.copy(entries = s.entries.map {
+                    if (it.id == id) it.copy(status = "interrupted", error = (e.message ?: "Recording interrupted. Saved audio is preserved.").take(500)) else it
+                }) }
             }
-            if (id != null) graph.repository.change { s -> s.copy(entries = s.entries.map {
-                if (it.id == id) it.copy(status = "interrupted", error = (e.message ?: "Recording interrupted. Saved audio is preserved.").take(500)) else it
-            }) }
         } finally {
-            withContext(NonCancellable) { preview?.stop() }
-            try { callback?.let { registeredAudio?.unregisterAudioRecordingCallback(it) }; audio?.stop() } catch (_: Exception) { }
-            audio?.release()
-            if (wake?.isHeld == true) wake.release()
-            active.value = false
-            stopForeground(STOP_FOREGROUND_REMOVE); stopSelf()
+            withContext(NonCancellable) {
+                runCatching { callback?.let { registeredAudio?.unregisterAudioRecordingCallback(it) }; audio?.stop() }
+                runCatching { audio?.release() }
+                if (wake?.isHeld == true) wake.release()
+                preview?.stop()
+                if (requestedDiscard) {
+                    try {
+                        graph.media.operations.withLock {
+                            val removed = graph.repository.discardRecording(entry?.id.orEmpty())
+                            (removed.map { it.path } + listOfNotNull(attachment?.path)).distinct().forEach { path ->
+                                val file = graph.media.file(path)
+                                check(!file.exists() || file.delete()) { "The recording left your journal, but its audio could not be removed from phone storage." }
+                            }
+                        }
+                        lastError.value = null
+                        session.value = RecordingSession(phase = "discarded", previewStatus = "Recording discarded.")
+                    } catch (e: Exception) {
+                        val message = (e.message ?: "Could not discard the recording. Saved audio is preserved.").take(500)
+                        runCatching { graph.repository.change { state -> state.copy(entries = state.entries.map {
+                            if (it.id == entry?.id && it.status == "recording") it.copy(status = "interrupted", error = message) else it
+                        }) } }
+                        lastError.value = message
+                        session.value = session.value.copy(phase = "error", previewStatus = message)
+                    }
+                }
+            }
+            withContext(NonCancellable + Dispatchers.Main.immediate) {
+                // Serialize final service state with onStartCommand so an immediate next capture is not lost.
+                stopForeground(STOP_FOREGROUND_REMOVE); stopSelf()
+                task = null
+                active.value = false
+            }
         }
     }
     override fun onDestroy() { requestedStop = true; super.onDestroy() }
     companion object {
+        const val DISCARD = "dev.daybook.DISCARD"
         const val STOP = "dev.daybook.STOP"
         const val PAUSE = "dev.daybook.PAUSE"
         const val BOOKMARK = "dev.daybook.BOOKMARK"

@@ -39,18 +39,18 @@ class CleanupWorker(context: Context, params: WorkerParameters) : CoroutineWorke
         val day = inputData.getString("day") ?: return@withContext Result.failure()
         try {
             val settings = graph.preferences.read()
-            require(inputData.getString("provider")?.let { it == settings.reviewProvider } != false) { "Review provider changed. Run cleanup again." }
-            require(ReviewPolicy.allowed(settings)) { "Enable OpenAI reviews in Settings, or choose on-device cleanup." }
+            require(inputData.getString("provider")?.let { it == settings.reviewProvider } != false) { "Review provider changed. Create the reflection again." }
+            require(ReviewPolicy.allowed(settings)) { "Enable OpenAI reviews in Settings, or choose on-device reflections." }
             val modelName = if (settings.reviewProvider == "local") LocalReviewProtocol.MODEL_NAME else settings.model
             val state = graph.repository.read()
             val entries = ReviewPrivacy.entries(state, day, settings.reviewProvider)
             if (entries.isEmpty()) {
-                require(state.entries.none { it.day == day && it.deletedAt == 0L }) { "These notes are kept on-device. Choose on-device cleanup or change their privacy settings." }
+                require(state.entries.none { it.day == day && it.deletedAt == 0L }) { "These notes are kept on-device. Choose on-device reflections or change their privacy settings." }
                 return@withContext Result.success()
             }
             if (entries.any { it.status in setOf("recording", "pending") }) {
                 if (runAttemptCount < 4) return@withContext Result.retry()
-                error("Some voice notes are still waiting for transcription. Finish them, then clean up this day.")
+                error("Some voice notes are still waiting for transcription. Finish them, then create this day’s reflection.")
             }
             require(entries.none { it.status != "ready" && it.kind == "voice" && it.text.isBlank() }) {
                 "A voice note needs attention. Retry its transcription or add text before cleaning up."
@@ -63,19 +63,19 @@ class CleanupWorker(context: Context, params: WorkerParameters) : CoroutineWorke
             }
             val context = if (settings.reviewProvider == "openai") ReviewPrivacy.cloudContext(state) else state
             val input = ReviewInput(day, entries, context.goals.filter { !it.archived }, photos, context.activities.filter { it.day == day && !it.undone }, context.items.filter { !it.done && !it.archived })
-            setProgress(workDataOf("message" to if (settings.reviewProvider == "local") "Cleaning up on this phone. Larger days can take a few minutes…" else "Cleaning up with OpenAI…"))
+            setProgress(workDataOf("message" to if (settings.reviewProvider == "local") "Creating your reflection on this phone. Larger days can take a few minutes…" else "Creating your reflection with OpenAI…"))
             ensureActive()
             val beforeGeneration = graph.preferences.read()
-            require(beforeGeneration.reviewProvider == settings.reviewProvider && ReviewPolicy.allowed(beforeGeneration)) { "Review settings changed. Run cleanup again." }
+            require(beforeGeneration.reviewProvider == settings.reviewProvider && ReviewPolicy.allowed(beforeGeneration)) { "Review settings changed. Create the reflection again." }
             val draft = if (settings.reviewProvider == "local") LocalCleanupClient(graph.localModel.file, graph.localModel::ready).generate(input)
                 else OpenAiClient().generate(input, graph.keys.read(), settings.model)
             ensureActive()
-            require(graph.preferences.read().reviewProvider == settings.reviewProvider) { "Review provider changed. Run cleanup again." }
+            require(graph.preferences.read().reviewProvider == settings.reviewProvider) { "Review provider changed. Create the reflection again." }
             val review = Review(day = day, fingerprint = fingerprint, journal = draft.journal, summary = draft.summary,
                 captions = draft.captions, model = modelName, sourceIds = entries.map { it.id }, provider = settings.reviewProvider)
             graph.repository.change { current ->
                 // If sources were deleted while the request was running, never bring their content back.
-                require(JournalRules.fingerprint(current, day) == fingerprint) { "This day changed during cleanup. Refresh the review to include the latest notes." }
+                require(JournalRules.fingerprint(current, day) == fingerprint) { "This day changed while creating the reflection. Refresh the reflection to include the latest notes." }
                 val existing = current.suggestions.filter { it.status != "pending" && it.status != "superseded" }.map { JournalRules.suggestionKey(it.goalId, it.day, it.sources) }.toSet()
                 val suggestions = draft.suggestions.filter { JournalRules.suggestionKey(it.goalId, day, it.sources) !in existing }.map {
                     Suggestion(reviewId = review.id, goalId = it.goalId, day = day, amount = it.amount, note = it.note, sources = it.sources, estimated = it.estimated)
@@ -86,13 +86,13 @@ class CleanupWorker(context: Context, params: WorkerParameters) : CoroutineWorke
         } catch (e: CancellationException) { throw e
         } catch (e: CleanupFailure) {
             if (e.retryable && runAttemptCount < 4) Result.retry()
-            else Result.failure(workDataOf("error" to (e.message ?: "Cleanup failed.").take(500)))
+            else Result.failure(workDataOf("error" to (e.message ?: "Could not create reflection.").take(500)))
         } catch (e: java.io.IOException) {
             if (applicationContext.daybook.preferences.read().reviewProvider == "local") return@withContext Result.failure(workDataOf("error" to "The on-device model could not be read. Check the download in Settings; your notes are saved."))
             if (runAttemptCount < 4) Result.retry()
             else Result.failure(workDataOf("error" to "Could not connect to OpenAI. Your notes are saved. Try again later."))
         } catch (e: Exception) {
-            Result.failure(workDataOf("error" to (e.message ?: "Cleanup failed. Your originals are preserved.").take(500)))
+            Result.failure(workDataOf("error" to (e.message ?: "Could not create reflection. Your originals are preserved.").take(500)))
         }
     }
 }

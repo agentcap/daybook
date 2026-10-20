@@ -24,7 +24,7 @@ class LocalReviewSettingsTest {
     @Test fun chooseLocalWithoutAKeyAndSwitchBackWithoutEnablingCloudConsent() = runBlocking<Unit> {
         val graph = compose.activity.daybook
         compose.onNodeWithText("Settings", substring = false).performClick()
-        compose.onNodeWithText("AI daily reviews").performClick()
+        compose.onNodeWithText("AI reflections").performClick()
         compose.onNodeWithText("On-device", substring = false).performClick()
         compose.waitUntil(10000) { graph.settings.value.reviewProvider == "local" }
         compose.onNodeWithText("Qwen 2.5 · 1.5B").performScrollTo().assertIsDisplayed()

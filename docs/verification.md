@@ -1,6 +1,29 @@
 # Verification
 
-Current release: **0.5.0-beta.1**. Earlier release results are retained below for context.
+Current release: **0.5.1-beta.1**. Earlier release results are retained below for context.
+
+## 0.5.1 recording discard and daily reflections
+
+Completed on 2026-10-19 in the isolated Android 16/API 36 emulator:
+
+- All 47 JVM tests passed. The Android runner reported OK (42 tests): 29 regular workflows passed and 13 opt-in cases were skipped.
+- New recording cases checked Keep recording versus confirmed Discard, paused capture, removing the audio/live draft/revisions, preserving an earlier note and daily reflection, and not queuing final transcription.
+- Immediate cancellation during startup leaves no note or audio. A subsequent recording saves successfully. Saved voice notes cannot be removed through the unfinished-recording operation.
+- Recorder completion is serialized with new service commands. Existing widget duplication and activity-recreation tests passed; an incoming widget tap while recording only reopens the active capture.
+- Reflection labels passed in journal, settings, source preview and provider selection. Stored schedule fields and WorkManager identifiers are unchanged.
+- Android lint: 0 errors and 40 warnings. Verification APK/test APK, signed personal APK and signed AAB builds passed.
+- APK/AAB signatures and bundletool validation passed. The update retains the existing signing identity. APK ZIP and every native ELF load segment retain 16 KiB alignment.
+- Final screenshot tour passed in 22.054 seconds; actual recording and discard confirmation screens were inspected. Save/Discard remained reachable with 200% text, with a shortened Save label and full accessibility description. The 3 discard workflows passed again after that UI polish (10.034 seconds).
+- The signed release upgraded personal 0.5.0-beta.1 on the emulator and cold-launched successfully.
+- Native inference, OpenAI wire format and archive format are unchanged. The broader real-model and automatic-backup results from 0.5.0 below were not rerun for this update.
+
+The final regular Android suite completed in 77.867 seconds. Local test logs are under ignored verification/. Earlier failing development runs are retained there; the final result above is the passing run.
+
+APK: releases/daybook-0.5.1-beta.1.apk, 67,028,823 bytes; SHA-256 7b74f42fc729dbc64d775af097cca68ae3962079e6d22eb96ff41993ec27d8a8.
+
+AAB: releases/daybook-0.5.1-beta.1.aab, 27,634,816 bytes; SHA-256 3427255cde716b81219b2c0d96387a5571f4714b9f58e9d2bf93a2fcb71a0c72.
+
+Physical Galaxy validation and a live OpenAI request remain pending. GitHub distribution remains source-only; APK and AAB files stay local.
 
 ## 0.5.0 beta publishing and recovery verification
 

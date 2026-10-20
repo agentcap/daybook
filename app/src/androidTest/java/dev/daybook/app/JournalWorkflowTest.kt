@@ -56,8 +56,8 @@ class JournalWorkflowTest {
         runBlocking { graph.repository.change { base.copy(reviews = listOf(review), suggestions = listOf(suggestion)) } }
         compose.waitUntil(10000) { graph.state.value.reviews.size == 1 }
         compose.onNodeWithText("0 goals worked on").assertExists()
-        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Read cleaned journal"))
-        compose.onNodeWithText("Read cleaned journal").performClick()
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Read reflection"))
+        compose.onNodeWithText("Read reflection").performClick()
         compose.onNodeWithText("Original notes").performScrollTo().assertIsDisplayed()
         compose.onNode(hasScrollToIndexAction()).performTouchInput { swipeUp() }
         compose.onNode(hasText("Text · ", substring = true)).assertIsDisplayed().performClick()

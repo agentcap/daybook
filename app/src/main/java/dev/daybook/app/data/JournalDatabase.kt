@@ -81,6 +81,19 @@ class JournalRepository(private val db: JournalDatabase) : JournalStorage {
     suspend fun archive(id: String) = change { s -> s.copy(goals = s.goals.map { if (it.id == id) it.copy(archived = true) else it }) }
     suspend fun trash(id: String) = change { RecoveryRules.trash(it, id) }
     suspend fun restoreEntry(id: String) = change { RecoveryRules.restore(it, id) }
+    /** Remove only an unfinished voice draft; earlier reviews for the day remain intact. */
+    suspend fun discardRecording(id: String): List<Attachment> {
+        var removed = emptyList<Attachment>()
+        change { state ->
+            val entry = state.entries.find { it.id == id } ?: return@change state
+            require(entry.kind == "voice" && entry.status in setOf("recording", "interrupted")) { "This recording has already been saved." }
+            removed = state.attachments.filter { it.entryId == id }
+            state.copy(entries = state.entries.filterNot { it.id == id },
+                attachments = state.attachments.filterNot { it.entryId == id },
+                revisions = state.revisions.filterNot { it.entryId == id })
+        }
+        return removed
+    }
     suspend fun deleteEntry(id: String): List<Attachment> {
         var removed = emptyList<Attachment>()
         change { s ->

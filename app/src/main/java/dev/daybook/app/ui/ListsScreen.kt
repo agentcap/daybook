@@ -46,8 +46,8 @@ import dev.daybook.core.*
             }
         }
         if (section == "Suggestions") {
-            item { Text("Found during daily cleanup. Review, edit, or dismiss each suggestion. Nothing is added or counted automatically.", style = MaterialTheme.typography.bodyMedium) }
-            if (pending.isEmpty()) item { SectionCard { Icon(Icons.Outlined.AutoAwesome, null, tint = MaterialTheme.colorScheme.primary); Text("No suggestions waiting."); Text("When a note mentions a new goal, task, or idea, daily cleanup can suggest it here.", style = MaterialTheme.typography.bodySmall) } }
+            item { Text("Found during daily reflection. Review, edit, or dismiss each suggestion. Nothing is added or counted automatically.", style = MaterialTheme.typography.bodyMedium) }
+            if (pending.isEmpty()) item { SectionCard { Icon(Icons.Outlined.AutoAwesome, null, tint = MaterialTheme.colorScheme.primary); Text("No suggestions waiting."); Text("When a note mentions a new goal, task, or idea, daily reflection can suggest it here.", style = MaterialTheme.typography.bodySmall) } }
             items(pending, key = { it.id }) { p ->
                 val current = PlannerRules.current(state, p)
                 SectionCard(Modifier.animateItem()) {
@@ -81,7 +81,7 @@ import dev.daybook.core.*
             if (items.isEmpty()) item { SectionCard {
                 Icon(if (section == "Ideas") Icons.Outlined.Lightbulb else Icons.Outlined.Checklist, null, tint = MaterialTheme.colorScheme.primary)
                 Text(if (filter != "Open") "Nothing here yet." else if (section == "Ideas") "Keep something you’d like to try." else "One less thing to keep in your head.")
-                Text("Add your own, or approve a suggestion from daily cleanup.", style = MaterialTheme.typography.bodySmall)
+                Text("Add your own, or approve a suggestion from daily reflection.", style = MaterialTheme.typography.bodySmall)
             } }
             items(items, key = { it.id }) { item ->
                 SectionCard(Modifier.animateItem().animateContentSize()) {

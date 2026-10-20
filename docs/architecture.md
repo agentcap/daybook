@@ -82,3 +82,12 @@ Cloud workers and manual previews share privacy selection. On-device entries and
 The Processing screen exposes retry/cancel and download state. Download policy applies to starting/resuming work; cleanup charging constraints are reapplied to unfinished jobs. Reduced animations follow the app setting or Android's disabled animator setting. Feedback uses an editable system-share draft with optional visible diagnostics, without a telemetry SDK.
 
 Signed APK and AAB artifacts are prepared locally, with policy/notice assets and reproducible publishing files. Public developer metadata is read from an ignored release.properties file. The release checker refuses incomplete public metadata and a draft policy site; physical-device and Play Console requirements are tracked separately. No store upload occurs as part of the build.
+
+
+## Recording discard and reflection wording (0.5.1 beta)
+
+A service-owned DISCARD action stops capture, cancels the live preview, and removes only the current unfinished voice entry, draft revisions, and audio after closing the recorder. It does not enqueue final transcription or delete earlier daily reviews. The repository rejects discarding a saved voice entry. A confirmation sheet keeps the recording active until the user confirms.
+
+Terminal save/discard state is serialized on the main dispatcher with service commands; an immediate next capture cannot be ignored while the prior worker coroutine is finishing. The view closes only after discard finishes. Widget intents received during recording are routed to reopen that capture, preventing a delayed UI effect from replaying it after saving. Saved entries still use the existing Recently Deleted flow.
+
+User-facing generation is called a daily reflection: Create daily reflection, Refresh reflection, AI reflections, and nightly/charging options use matching language. Persisted settings fields, WorkManager names/tags and internal provider interfaces retain their old identifiers for compatibility.
