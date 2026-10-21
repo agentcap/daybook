@@ -1,6 +1,26 @@
 # Verification
 
-Current release: **0.5.3-beta.1**. Earlier release results are retained below for context.
+Current release: **0.6.0-beta.1**. Earlier release results are retained below for context.
+
+## 0.6.0 Selectable offline speech
+
+Completed on 2026-10-21 in the isolated Android 16/API 36 x86-64 emulator:
+
+- Added Moonshine v2 Small, Moonshine v2 Medium, and Parakeet TDT 0.6B v2 int8 alongside Whisper base.en. Settings saves the selection immediately; each has separate download progress, resume, readiness and removal controls. Only Whisper has optional live previews. All choices transcribe after saving.
+- Every component was downloaded on the build host and verified. Moonshine files matched the upstream catalog's CRC32C before SHA-256 pinning; Parakeet binaries matched upstream LFS hashes. The Android production downloader verified every component before inference. A missing Moonshine tokenizer was resumed from a partial file against its actual HTTPS host.
+- Real production transcription workers ran all four choices twice in opposite loading orders with airplane mode enabled and no active network. All recognized the JFK fixture, kept its source audio, preserved original/current revisions, honored their queued model despite a different default setting, and refused to overwrite subsequently saved corrections.
+- New engines passed two-window audio-offset checks, cancellation, native session cleanup and reuse. The longer fixture contains speech before and after the 30-second boundary. These are correctness checks, not accent/noise accuracy or sustained phone benchmarks.
+- The combined instrumentation run passed 41 enabled workflows (54 reported cases, 13 opt-in cases skipped) in 179.828 seconds. It included the three actual-model cases, four speech-choice cases, recording/discard/edit controls, widgets, goals, search/calendar/stats, privacy/trash, and encrypted backup/restore. A recording kept Moonshine after Settings switched to Parakeet. Backup/restore retained the selected model and live-preview preference while excluding model files and credentials.
+- Initial diagnostic runs caught stale shared state in the immediate-discard test and a physical-click race in history; tests now reset that request state and use the semantic click. Network-dependent opt-in checks wait for validated connectivity after airplane-mode restoration.
+- Final compatibility review excluded engine provenance from content fingerprints, preserving existing 0.5.3 review and proposal hashes. All 55 JVM tests passed (38 core, 17 app), including known pre-upgrade hash fixtures. Seventeen relevant Android workflows were rechecked afterwards; one had a transient Espresso/Compose measure-layout exception, and all five workflows in that class passed an isolated rerun (12.471 seconds). The other sixteen checks passed.
+- Android lint: 0 errors, 43 warnings. Verification/test APK, signed personal APK, and signed AAB builds passed. APK/AAB signatures, bundletool validation, credential/model exclusion, ZIP alignment and all 16 native ELF libraries' 16 KiB alignment passed.
+- The signed APK installed over personal 0.5.3-beta.1 without uninstalling and launched successfully. Screenshot 33 shows the actual model chooser and downloaded Parakeet status. GitHub remains source-only.
+
+APK: releases/daybook-0.6.0-beta.1.apk, 158,586,506 bytes; SHA-256 b90ab837e16850eb88911f76a0a23b1d769e539d487540c072a744badcf72b53.
+
+AAB: releases/daybook-0.6.0-beta.1.aab, 65,166,688 bytes; SHA-256 218cb6e0600e31273cc2a6d14b5cd6253aac2fcc8fdd1aae358eda89b5f0f8c1.
+
+Physical Galaxy/Pixel ARM64 loading, microphone quality, memory/thermal/battery behavior, sustained long-note speed, actual phone downloads and scheduling remain unverified. This release did not repeat live OpenAI calls, physical biometrics, or local Qwen inference; review providers and their native code are unchanged. See [model pins and verification instructions](speech-models.md) and the [phone checklist](../publishing/device-testing.md).
 
 ## 0.5.3 Edit the saved recording transcript
 

@@ -18,7 +18,7 @@ List items and proposed creations are additional typed documents in the same sch
 
 A microphone foreground service records mono 16 kHz PCM WAV to app-private storage, checkpoints its header regularly, and holds a bounded wake lock for screen-off recording. A process interruption changes unfinished entries to interrupted on next startup. WAV repair reconciles the header with actual captured bytes.
 
-WorkManager serializes transcription per entry. A process-wide mutex serializes native inference calls. JNI loads the pinned whisper.cpp model and handles 30-second audio chunks with a basic silence-energy gate. Originals are never sent to a speech service. Quiet/noisy input may still need manual correction, particularly at chunk boundaries.
+WorkManager serializes transcription per entry. A process-wide mutex serializes native inference calls. SpeechCatalog pins model components, checksums, sizes, engine IDs, and download job names. Each recording and queued worker pins its speech model. SpeechEngines routes to whisper.cpp, Moonshine Voice 0.1.5, or Sherpa-onnx 1.13.8 (Parakeet TDT int8). Models use bounded 30-second audio windows; Whisper additionally uses an energy gate. Originals are never sent to a speech service. Quiet/noisy input may still need manual correction, particularly at chunk boundaries.
 
 Live previews use a reusable whisper.cpp context with three CPU threads, three-second initial previews, and six-second segments. A bounded channel drops older queued windows when inference falls behind, so transcription cannot block PCM capture. New previews replace the same segment’s earlier draft. The recording session exposes elapsed audio time, RMS level, text, and status through StateFlow. Drafts are persisted while recording; final transcription preserves the previous draft as a revision before replacing it. Preview failure leaves capture available, and final transcription failure retains draft text and the WAV.
 
@@ -91,3 +91,9 @@ A service-owned DISCARD action stops capture, cancels the live preview, and remo
 Terminal save/discard state is serialized on the main dispatcher with service commands; an immediate next capture cannot be ignored while the prior worker coroutine is finishing. The view closes only after discard finishes. Widget intents received during recording are routed to reopen that capture, preventing a delayed UI effect from replaying it after saving. Saved entries still use the existing Recently Deleted flow.
 
 User-facing generation is called a daily reflection: Create daily reflection, Refresh reflection, AI reflections, and nightly/charging options use matching language. Persisted settings fields, WorkManager names/tags and internal provider interfaces retain their old identifiers for compatibility.
+
+## Speech choices
+
+Per-model locks serialize downloads, inference, and removal. A separate shared inference lock serializes final speech tasks; each native engine closes/releases its sessions after each note. Moonshine loads its bundled dynamic ONNX Runtime; Sherpa statically links ONNX Runtime to avoid competing shared-library versions. Existing Whisper paths and queued jobs remain compatible. Ready markers require all expected files and sizes, and downloads hash each component before writing the manifest marker. Work input and entry metadata retain stable model IDs across restarts. Backups include model preferences and entry IDs, but never downloaded weights. Explicit retranscription preserves prior original text and adds the replaced current text to revisions.
+
+Speech-engine provenance is excluded from review and proposal content fingerprints so pre-upgrade reviews remain current when their source content has not changed. Tests pin known 0.5.3 source hashes.

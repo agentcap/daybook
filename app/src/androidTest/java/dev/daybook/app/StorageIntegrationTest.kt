@@ -57,12 +57,18 @@ class StorageIntegrationTest {
             val staged = PlannerRules.proposals(state, state.reviews.single(), listOf(proposed))
             PlannerRules.approve(staged, staged.proposals.single().id, proposed.title, proposed.details)
         }
+        val prefs = Preferences(context)
+        val originalSettings = prefs.read()
+        prefs.save(originalSettings.copy(speechModel = "moonshine_medium", liveTranscripts = false))
         val before = repo.read()
         val backup = temp("daybook")
         backups.export(Uri.fromFile(backup), password.clone())
         repo.change { Snapshot() }
         backups.restore(Uri.fromFile(backup), password.clone())
         val after = repo.read()
+        assertEquals("moonshine_medium", prefs.read().speechModel)
+        assertFalse(prefs.read().liveTranscripts)
+        prefs.save(originalSettings)
         assertEquals(before.entries, after.entries)
         assertEquals("Raw unedited dinner note.", after.entries.first { it.id == e.id }.originalText)
         assertEquals("I ate dinner.", after.entries.first { it.id == e.id }.text)

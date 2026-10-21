@@ -17,7 +17,7 @@ object PlannerRules {
     fun key(item: ProposedItem) = sha256("${item.kind}|${normalized(item.title)}|${item.sources.sorted().joinToString(",")}".toByteArray())
     fun sourceFingerprint(state: Snapshot, sources: List<String>): String {
         val ids = sources.toSet()
-        return sha256(Gson().toJson(listOf(state.entries.filter { it.id in ids }.sortedBy { it.id },
+        return sha256(Gson().toJson(listOf(sourceEntries(state.entries.filter { it.id in ids }.sortedBy { it.id }),
             state.revisions.filter { it.entryId in ids }.sortedBy { it.id },
             state.attachments.filter { it.entryId in ids }.sortedBy { it.id })).toByteArray())
     }

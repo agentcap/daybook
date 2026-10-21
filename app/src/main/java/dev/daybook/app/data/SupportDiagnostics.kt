@@ -9,6 +9,7 @@ object SupportDiagnostics {
         "Android API " + Build.VERSION.SDK_INT,
         "Device " + Build.MANUFACTURER + " " + Build.MODEL,
         "Free app storage (MB): " + context.filesDir.usableSpace / 1048576,
+        "Speech model: " + dev.daybook.core.SpeechCatalog.get(graph.settings.value.speechModel).title,
         "Speech model ready: " + graph.model.ready(),
         "Review model ready: " + graph.localModel.ready()
     ).joinToString("\n")

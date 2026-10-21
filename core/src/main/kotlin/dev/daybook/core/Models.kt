@@ -12,7 +12,13 @@ data class Entry(val id: String = newId(), val day: String = "", val created: Lo
     val zone: String = ZoneId.systemDefault().id, val kind: String = "text", val originalText: String = "",
     val text: String = originalText, val status: String = "ready", val error: String = "",
     val deletedAt: Long = 0, val keepLocal: Boolean = false, val includePhotosInCloud: Boolean = true,
-    val bookmarks: List<AudioBookmark> = emptyList(), val segments: List<TranscriptSegment> = emptyList())
+    val bookmarks: List<AudioBookmark> = emptyList(), val segments: List<TranscriptSegment> = emptyList(),
+    val speechModel: String = "")
+// Speech-engine provenance is metadata, not journal content. Keep existing source hashes stable.
+internal fun sourceEntries(entries: List<Entry>): List<com.google.gson.JsonObject> {
+    val gson = com.google.gson.Gson()
+    return entries.map { gson.toJsonTree(it).asJsonObject.apply { remove("speechModel") } }
+}
 data class AudioBookmark(val id: String = newId(), val ms: Long = 0, val label: String = "Bookmark")
 data class TranscriptSegment(val ms: Long = 0, val endMs: Long = 0, val text: String = "")
 data class WeekReflection(val id: String = newId(), val week: String = "", val text: String = "", val updated: Long = System.currentTimeMillis())
@@ -37,7 +43,8 @@ data class Settings(val onboarded: Boolean = false, val wake: String = "09:00", 
     val intervalHours: Int = 3, val cleanupTime: String = "22:00", val reminders: Boolean = true,
     val autoCleanup: Boolean = true, val model: String = "gpt-5.4-mini", val biometric: Boolean = false,
     val theme: String = "system", val cloudConsent: Boolean = false, val reviewProvider: String = "openai",
-    val wifiOnlyDownloads: Boolean = true, val cleanupChargingOnly: Boolean = false, val reduceMotion: Boolean = false)
+    val wifiOnlyDownloads: Boolean = true, val cleanupChargingOnly: Boolean = false, val reduceMotion: Boolean = false,
+    val speechModel: String = SpeechCatalog.WHISPER, val liveTranscripts: Boolean = true)
 data class BackupBundle(val version: Int = 2, val state: Snapshot, val settings: Settings)
 
 object JournalRules {
@@ -54,6 +61,7 @@ object JournalRules {
         require(s.intervalHours in 1..12) { "Reminder interval must be between 1 and 12 hours." }
         require(s.model.matches(Regex("[a-zA-Z0-9._-]{1,100}"))) { "Enter a valid model name." }
         require(s.theme in setOf("system", "light", "dark"))
+        SpeechCatalog.get(s.speechModel)
         require(s.reviewProvider in setOf("openai", "local")) { "Choose OpenAI or on-device reviews." }
     }
     fun progress(state: Snapshot, goal: Goal, date: LocalDate): Double = state.activities
@@ -67,7 +75,7 @@ object JournalRules {
     fun suggestionKey(goalId: String, day: String, sources: List<String>): String = sha256("$goalId|$day|${sources.sorted().joinToString(",")}".toByteArray())
     fun fingerprint(state: Snapshot, day: String): String {
         val ids = state.entries.filter { it.day == day && it.deletedAt == 0L }.map { it.id }.toSet()
-        val data = listOf(state.entries.filter { it.id in ids }.sortedBy { it.id },
+        val data = listOf(sourceEntries(state.entries.filter { it.id in ids }.sortedBy { it.id }),
             state.revisions.filter { it.entryId in ids }.sortedBy { it.id },
             state.attachments.filter { it.entryId in ids }.sortedBy { it.id },
             state.goals.filter { !it.archived }.sortedBy { it.id })

@@ -8,3 +8,5 @@ Optional local-review weights: Qwen2.5-1.5B-Instruct Q4_K_M, Apache 2.0, downloa
 Native Android C++ runtime notices: see the Android NDK distribution and its packaged notice file when supplied.
 
 Pinned source revisions and model checksums are recorded in the repository. Models and development test audio are not bundled in the release.
+
+Moonshine Voice 0.1.5 and English Moonshine v2 Small/Medium models: MIT. Sherpa-onnx 1.13.8: Apache-2.0. ONNX Runtime: MIT. NVIDIA Parakeet TDT 0.6B v2: CC-BY-4.0, int8 ONNX conversion by sherpa-onnx/csukuangfj. Full licenses, source links, and attribution: speech-model-licenses.txt. Models download separately and are excluded from Git, APKs, and backups.

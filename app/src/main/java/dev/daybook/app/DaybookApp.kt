@@ -24,7 +24,7 @@ class DaybookApp : Application() {
                 graph.scheduler.reschedule()
                 graph.backupJobs.reschedule()
                 graph.purgeTrash()
-                graph.repository.read().entries.filter { it.status == "pending" && it.deletedAt == 0L }.forEach { graph.transcriptions.enqueue(it.id) }
+                graph.repository.read().entries.filter { it.status == "pending" && it.deletedAt == 0L }.forEach { graph.transcriptions.enqueue(it.id, modelId = it.speechModel.ifBlank { SpeechCatalog.WHISPER }) }
             } finally { graph.initialized.complete(Unit) }
         }
     }
@@ -64,9 +64,11 @@ class AppGraph(val context: Context) {
     }
     suspend fun purgeTrash() { RecoveryRules.expired(repository.read()).forEach { purgeEntry(it) } }
     suspend fun retryTranscription(id: String) {
+        val modelId = preferences.read().speechModel
+        transcriptions.cancel(id).result.get()
         repository.change { s -> s.copy(entries = s.entries.map {
-            if (it.id == id && it.deletedAt == 0L && it.status != "recording") it.copy(status = "pending", error = "") else it }) }
-        transcriptions.enqueue(id, replace = true)
+            if (it.id == id && it.deletedAt == 0L && it.status != "recording") it.copy(status = "pending", error = "", speechModel = modelId) else it }) }
+        transcriptions.enqueue(id, replace = true, modelId = modelId)
     }
     suspend fun cancelTranscription(id: String) {
         transcriptions.cancel(id)

@@ -14,9 +14,9 @@ Synthetic sample journal, captured from the running Android app. The meal illust
 
 [GitHub repository](https://github.com/agentcap/daybook) contains source code only. APK/AAB files are local build artifacts and are not uploaded. Build an APK using the instructions below; paths under `releases/` refer to artifacts on the original build machine.
 
-1. Install `releases/daybook-0.5.3-beta.1.apk`, or build the APK below. This is a signed, non-debuggable build for personal installation.
+1. Install `releases/daybook-0.6.0-beta.1.apk`, or build the APK below. This is a signed, non-debuggable build for personal installation.
 2. Choose your waking hours, reminder interval, and nightly reflections time during onboarding. Grant notification permission for check-ins.
-3. Download the English speech model (141 MB) once. Recording works before the download; saved recordings can be transcribed afterwards.
+3. Open **Settings → Voice & offline speech**, choose Whisper, Moonshine v2 Small/Medium, or Parakeet TDT v2, then download that model once. Recording works before downloading; retry saved recordings afterwards.
 4. Create goals from Goals → New goal. Templates include gym, cooking, laundry, blogging, learning, and 3000 calories.
 5. For daily AI reviews, open **Settings → AI reflections**. Choose **On-device** and download its model for offline text reflections, or choose **OpenAI**, save your own API key, and turn on **Allow OpenAI reflections**. Capture and manual tracking need no key.
 
@@ -25,6 +25,23 @@ A note can be written, recorded, or photographed. Tap a saved note to play its o
 The Today screen shows **distinct goals worked on that day**. Logging partial effort counts even with amount zero; completing a goal is separate. Daily and weekly numeric progress is calculated by the app. Weekly goals use Monday–Sunday, and historical views only include activity through the selected day.
 
 OpenAI reviews include the selected day's eligible note text and journal-attached photos, following each note's privacy choices. The phone's other photos are not included. On-device reviews use note text only. Original audio is never sent for transcription or cleanup. Open a note to keep it on-device or exclude its photos from future cloud reviews. Manual OpenAI reflections previews eligible notes, photos, and context before sending. Generated reviews have their own revision history. Goal and calorie suggestions require your confirmation and can be edited, dismissed, or undone. A later note/edit marks the review outdated; refresh it to include the new content.
+
+## Choose offline speech
+
+Open **Settings → Voice & offline speech** to select a model and download it. The app supports:
+
+| Model | Download | Recording preview |
+| --- | ---: | --- |
+| Whisper base.en | 141.1 MiB | Optional live drafts |
+| Moonshine v2 Small | 135.7 MiB | After saving |
+| Moonshine v2 Medium | 256.7 MiB | After saving |
+| Parakeet TDT 0.6B v2 (int8) | 630.6 MiB | After saving |
+
+All four run locally in airplane mode after installation. Downloads show per-model progress, resume partial files, and verify each component before marking the model ready. **Processing & downloads** lists all installed/downloadable models; **Remove selected speech model** frees its storage without deleting notes. There is no silent fallback to a different model or cloud service.
+
+The selection is saved immediately. A recording and its queued transcription keep the model chosen when recording started. An explicit retry uses the current selection. Open a saved voice note → **Transcribe again** to try a different model; previous text stays in revision history, original text/audio remain available, and saved corrections are protected from already-running jobs.
+
+New models process bounded 30-second windows to limit audio memory. Segment timestamps are approximate, and words at window boundaries may need editing. Larger models use more memory and can take longer. Current correctness checks passed on an x86-64 Android 36 emulator; phone speed, battery use, and sustained transcription still need physical Pixel/Samsung testing. See [speech runtime and model pins](docs/speech-models.md) and [the model chooser](docs/screenshots/33-speech-models.png).
 
 ## Choose local or cloud reviews
 
@@ -36,7 +53,7 @@ Switching providers requeues unfinished cleanup with the appropriate network req
 
 ## Recording, reflection, and plans
 
-The recording view shows elapsed time, microphone levels, and a local draft transcript. Download the English model once, then use it offline. Previews process short windows beginning after three seconds; text can arrive later on slower devices. Pause and resume without adding pause-time silence. Use Discard to confirm removal of the current recording and its live draft; earlier entries and reflections remain saved. Mark a moment with an audio bookmark; after processing, use Transcript timeline in the note to seek to a segment of the original audio. Segment times are approximate. Stopping saves the original audio and queues a fuller transcription. On that same screen, tap **Edit transcript**, correct or add text, then **Save changes**. Editing also works while the fuller transcript is processing: incoming text does not replace your draft, and saved corrections are protected from later transcription. Cancel returns to the saved transcript; closing with unsaved edits asks before discarding them. Original audio and transcript revisions stay saved. Minimize the view to browse the app, or lock the screen while recording. Draft text survives a failed final transcription.
+The recording view shows elapsed time and microphone levels. With Whisper selected, optional local draft transcripts appear while recording. Moonshine and Parakeet transcribe after saving. Download your selected model once, then use it offline. Previews process short windows beginning after three seconds; text can arrive later on slower devices. Pause and resume without adding pause-time silence. Use Discard to confirm removal of the current recording and its live draft; earlier entries and reflections remain saved. Mark a moment with an audio bookmark; after processing, use Transcript timeline in the note to seek to a segment of the original audio. Segment times are approximate. Stopping saves the original audio and queues a fuller transcription. On that same screen, tap **Edit transcript**, correct or add text, then **Save changes**. Editing also works while the fuller transcript is processing: incoming text does not replace your draft, and saved corrections are protected from later transcription. Cancel returns to the saved transcript; closing with unsaved edits asks before discarding them. Original audio and transcript revisions stay saved. Minimize the view to browse the app, or lock the screen while recording. Draft text survives a failed final transcription.
 
 [See the saved-transcript editor](docs/screenshots/31-edit-saved-transcript.png) and [the corrected recording](docs/screenshots/32-transcript-corrected.png).
 
@@ -66,7 +83,7 @@ Enable **Settings → Privacy & lock → Fingerprint & screen lock** to show And
 - Stop using **Stop & save** in the persistent recording notification or on Today. Repeated widget taps while recording do not create another recording.
 - After updating, touch and hold an existing widget to resize it, or remove/re-add it to apply the smaller default footprint. Removing a widget does not delete journal entries. Launcher cell sizes vary; [Android widget sizing](https://developer.android.com/develop/ui/views/appwidgets/layouts) describes the requested defaults.
 
-Install this APK over 0.1.0, 0.2.0, 0.3.0, 0.4.0, 0.4.1, 0.5.0-beta.1, 0.5.1-beta.1, or 0.5.2-beta.1 to retain existing notes and settings. It uses the same private signing key; no uninstall is needed.
+Install this APK over 0.1.0, 0.2.0, 0.3.0, 0.4.0, 0.4.1, 0.5.0-beta.1, 0.5.1-beta.1, 0.5.2-beta.1, or 0.5.3-beta.1 to retain existing notes and settings. It uses the same private signing key; no uninstall is needed.
 
 ## Build
 
@@ -87,7 +104,7 @@ python3 scripts/create-signing-key.py
 bash scripts/build.sh :app:assembleRelease
 ```
 
-Personal APK: `app/build/outputs/apk/release/app-release.apk`. Developer APK: `app/build/outputs/apk/debug/app-debug.apk`. ARM64 for phones and x86-64 for emulator checks are included. Gradle, Android plugins, direct libraries, whisper.cpp, llama.cpp, and both model revisions/checksums are pinned.
+Personal APK: `app/build/outputs/apk/release/app-release.apk`. Developer APK: `app/build/outputs/apk/debug/app-debug.apk`. ARM64 for phones and x86-64 for emulator checks are included. Gradle, Android plugins, direct libraries, whisper.cpp, llama.cpp, and speech/review model revisions/checksums are pinned. The build script downloads checksum-pinned Moonshine and Sherpa Android runtime AARs; model weights stay outside APKs. Run `python3 scripts/speech-dependencies.py` before a direct Android Studio/Gradle build.
 
 On this computer, the initial build reused the installed toolchain under `/home/pyarla/splitwise_ai/.tools/android/` through ignored local configuration; the new app has no source or runtime dependency on that project.
 

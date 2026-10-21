@@ -3,6 +3,7 @@ package dev.daybook.app.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.*
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -119,7 +120,7 @@ private fun clockText(value: String) = LocalTime.parse(value).format(DateTimeFor
 @Composable
 fun SettingsScreen(settings: Settings, hasKey: Boolean, modelReady: Boolean, modelWork: WorkInfo?, mediaBytes: Long, modelBytes: Long,
     day: String, modifier: Modifier, onSave: suspend (Settings) -> Unit, onKey: suspend (String) -> Unit, onDownload: () -> Unit,
-    onDeleteModel: () -> Unit, onPauseDownload: () -> Unit, onBackup: () -> Unit, onRestore: () -> Unit,
+    onDeleteModel: suspend () -> Unit, onPauseDownload: () -> Unit, onBackup: () -> Unit, onRestore: () -> Unit,
     onMarkdown: () -> Unit, onPermissions: () -> Unit, onBattery: () -> Unit, onAddWidget: () -> Unit, onAddNoteVoiceWidget: () -> Unit,
     localReady: Boolean, localWork: WorkInfo?, localBytes: Long, onLocalDownload: () -> Unit,
     onLocalPause: () -> Unit, onLocalDelete: suspend () -> Unit, onTools: (String) -> Unit = {}) {
@@ -154,7 +155,7 @@ fun SettingsScreen(settings: Settings, hasKey: Boolean, modelReady: Boolean, mod
                 SettingsLink(Icons.Outlined.NotificationsNone, "Reminders & rhythm",
                     if (settings.reminders) "Every ${settings.intervalHours} hours · ${clockText(settings.wake)}–${clockText(settings.sleep)}" else "Reminders are off") { page = "rhythm" }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                SettingsLink(Icons.Outlined.MicNone, "Voice & offline speech", if (modelReady) "English · ready offline" else "Download speech model · 141 MB") { page = "voice" }
+                SettingsLink(Icons.Outlined.MicNone, "Voice & offline speech", SpeechCatalog.get(settings.speechModel).title + if (modelReady) " · ready offline" else " · download needed") { page = "voice" }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 SettingsLink(Icons.Outlined.AutoAwesome, "AI reflections", if (settings.reviewProvider == "local") (if (localReady) "On-device · ready offline" else "On-device · download model to start") else if (!hasKey) "Add your OpenAI key to get started" else if (settings.cloudConsent) "Ready · ${if (settings.autoCleanup) "nightly & on demand" else "on demand"}" else "Key saved · reviews paused") { page = "ai" }
             }
@@ -196,23 +197,41 @@ fun SettingsScreen(settings: Settings, hasKey: Boolean, modelReady: Boolean, mod
                 }
                 "voice" -> {
                     SectionCard {
-                        Icon(Icons.Outlined.GraphicEq, null, Modifier.size(36.dp), tint = MaterialTheme.colorScheme.primary)
-                        Text(if (modelReady) "Ready for airplane mode" else "Take your voice offline", style = MaterialTheme.typography.titleLarge)
-                        Text("Download English speech once (141 MB). Voice notes are then transcribed on your phone, even without internet. Your original audio is always kept. Live draft text appears in short batches during recording and is refined after you stop.")
+                        Text("Choose your speech model", style = MaterialTheme.typography.titleLarge)
+                        Text("English transcription stays on this phone. Download each model once; your original audio is always kept.")
+                        SpeechCatalog.choices.forEach { choice ->
+                            Row(Modifier.fillMaxWidth().selectable(selected = settings.speechModel == choice.id, enabled = !saving, role = Role.RadioButton, onClick = { save(settings.copy(speechModel = choice.id)) }).padding(vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically) {
+                                RadioButton(selected = settings.speechModel == choice.id, onClick = null)
+                                Column(Modifier.weight(1f).padding(start = 10.dp)) {
+                                    Text(choice.title, style = MaterialTheme.typography.titleSmall)
+                                    Text(choice.description + " · " + byteText(choice.bytes), style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
+                        }
+                        Text("Changes apply to new recordings and retries. Recordings already queued keep their original model.", style = MaterialTheme.typography.bodySmall)
+                    }
+                    SectionCard {
+                        val choice = SpeechCatalog.get(settings.speechModel)
+                        Text(choice.title, style = MaterialTheme.typography.titleMedium)
+                        Text(if (modelReady) "Ready for airplane mode" else "Download · ${byteText(choice.bytes)}")
                         when (modelWork?.state) {
                             WorkInfo.State.RUNNING -> {
                                 LinearProgressIndicator(progress = { modelWork.progress.getInt("percent", 0) / 100f }, modifier = Modifier.fillMaxWidth())
                                 Text("Downloading · ${modelWork.progress.getInt("percent", 0)}%")
                             }
-                            WorkInfo.State.ENQUEUED -> Text("Download queued or waiting to retry.")
+                            WorkInfo.State.ENQUEUED -> Text(modelWork.progress.getString("message") ?: "Download queued or waiting for connection.")
                             WorkInfo.State.FAILED -> Text(modelWork.outputData.getString("error") ?: "Download failed. Please retry.", color = MaterialTheme.colorScheme.error)
                             WorkInfo.State.CANCELLED -> Text("Download paused. Continue whenever you are ready.")
                             else -> Unit
                         }
                         if (modelWork?.state in setOf(WorkInfo.State.RUNNING, WorkInfo.State.ENQUEUED)) OutlinedButton(onClick = onPauseDownload) { Text("Pause download") }
-                        else Button(onClick = onDownload, enabled = !modelReady) { Text(if (modelReady) "Speech model ready" else "Download English model") }
+                        else Button(onClick = onDownload, enabled = !modelReady) { Text(if (modelReady) "Speech model ready" else "Download selected model") }
+                        if (modelReady) TextButton(onClick = { deleteModel = true }) { Text("Remove selected speech model") }
+                        ToggleRow("Live transcript previews", if (choice.livePreview) "Shows draft text while recording. Final transcription runs after saving." else "This model transcribes after saving. Choose Whisper for live previews.",
+                            settings.liveTranscripts && choice.livePreview, { save(settings.copy(liveTranscripts = it)) }, !saving && choice.livePreview)
                         OutlinedButton(onClick = { onTools("processing") }) { Text("Processing & download options") }
-                        Text("Recording keeps going when the screen locks. Stop from the recording notification or Today. Each note can be up to 30 minutes.", style = MaterialTheme.typography.bodySmall)
+                        Text("Recording continues when the screen locks. Stop from its notification or Today. Each note can be up to 30 minutes. Larger models need more memory and time.", style = MaterialTheme.typography.bodySmall)
                     }
                 }
                 "ai" -> {
@@ -312,7 +331,7 @@ fun SettingsScreen(settings: Settings, hasKey: Boolean, modelReady: Boolean, mod
                         Text("Speech model · ${byteText(modelBytes)}")
                         Text("Review model · ${byteText(localBytes)}")
                         if (localBytes > 0) TextButton(onClick = { deleteLocal = true }) { Text("Remove review model") }
-                        if (modelReady) TextButton(onClick = { deleteModel = true }) { Text("Remove speech model") }
+                        TextButton(onClick = { page = "voice" }) { Text("Manage speech models") }
                         Text("Remove individual recordings and photos by deleting their note. Removing the model keeps your recordings; download it again to transcribe.", style = MaterialTheme.typography.bodySmall)
                     }
                 }
@@ -342,8 +361,8 @@ fun SettingsScreen(settings: Settings, hasKey: Boolean, modelReady: Boolean, mod
         text = { Text("Your notes and reviews stay saved. Download it again before using on-device reflections.") },
         confirmButton = { TextButton(onClick = { deleteLocal = false; task("Review model removed") { onLocalDelete() } }) { Text("Remove model") } },
         dismissButton = { TextButton(onClick = { deleteLocal = false }) { Text("Keep model") } })
-    if (deleteModel) AlertDialog(onDismissRequest = { deleteModel = false }, title = { Text("Remove speech model?") },
+    if (deleteModel) AlertDialog(onDismissRequest = { deleteModel = false }, title = { Text("Remove ${SpeechCatalog.get(settings.speechModel).title}?") },
         text = { Text("Your voice notes stay saved. Download the model again before transcribing.") },
-        confirmButton = { TextButton(onClick = { onDeleteModel(); deleteModel = false }) { Text("Remove model") } },
+        confirmButton = { TextButton(onClick = { deleteModel = false; task("Speech model removed") { onDeleteModel() } }) { Text("Remove model") } },
         dismissButton = { TextButton(onClick = { deleteModel = false }) { Text("Keep model") } })
 }

@@ -135,7 +135,7 @@ import java.time.*
                             OutlinedButton(onClick = { showPolicy = !showPolicy }) { Text(if (showPolicy) "Hide privacy policy" else "Read privacy policy") }
                             if (showPolicy) SelectionContainer { Text(remember { activity.assets.open("privacy-policy.txt").bufferedReader().use { it.readText() } }, style = MaterialTheme.typography.bodySmall) }
                             TextButton(onClick = { showLicenses = !showLicenses }) { Text("Open-source licenses") }
-                            if (showLicenses) listOf("third-party-notices.txt", "whisper.cpp-LICENSE.txt", "llama.cpp-LICENSE.txt", "Apache-2.0.txt").forEach { name ->
+                            if (showLicenses) listOf("third-party-notices.txt", "whisper.cpp-LICENSE.txt", "llama.cpp-LICENSE.txt", "Apache-2.0.txt", "speech-model-licenses.txt").forEach { name ->
                                 SelectionContainer { Text(remember(name) { activity.assets.open(name).bufferedReader().use { it.readText() } }, style = MaterialTheme.typography.bodySmall) }
                             }
                             if (BuildConfig.PRIVACY_POLICY_URL.isNotBlank()) OutlinedButton(onClick = { activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(BuildConfig.PRIVACY_POLICY_URL))) }) { Text("Open public privacy policy") }
@@ -207,10 +207,11 @@ import java.time.*
             else OutlinedButton(onClick = { graph.cleanup.enqueue(day, force = true, provider = settings.reviewProvider, replace = true, charging = settings.cleanupChargingOnly) }) { Text("Retry reflection") }
         }
     }
-    listOf("speech-model" to "English speech · 141 MB", dev.daybook.app.ai.LocalModel.WORK to "Local reviews · 1.1 GB").forEach { (name, title) ->
+    (SpeechCatalog.choices.map { SpeechCatalog.workName(it.id) to (it.title + " · " + byteText(it.bytes)) } + (dev.daybook.app.ai.LocalModel.WORK to "Local reviews · 1.1 GB")).forEach { (name, title) ->
         val works by remember(name) { WorkManager.getInstance(activity).getWorkInfosForUniqueWorkFlow(name) }.collectAsState(emptyList())
         val work = works.firstOrNull { !it.state.isFinished } ?: works.firstOrNull()
-        val ready = if (name == "speech-model") graph.model.ready() else graph.localModel.ready()
+        val choice = SpeechCatalog.choices.find { SpeechCatalog.workName(it.id) == name }
+        val ready = if (choice != null) graph.model.ready(choice.id) else graph.localModel.ready()
         SectionCard {
             Text(title, style = MaterialTheme.typography.titleSmall)
             Text(if (ready) "Ready offline" else when (work?.state) {
@@ -220,8 +221,8 @@ import java.time.*
                 else -> "Not downloaded"
             })
             if (!ready) {
-                if (work?.state?.isFinished == false) OutlinedButton(onClick = { if (name == "speech-model") graph.model.cancel() else graph.localModel.pause() }) { Text("Pause download") }
-                else OutlinedButton(onClick = { if (name == "speech-model") graph.model.download(settings.wifiOnlyDownloads) else graph.localModel.download(settings.wifiOnlyDownloads) }) { Text("Download or resume") }
+                if (work?.state?.isFinished == false) OutlinedButton(onClick = { if (choice != null) graph.model.cancel(choice.id) else graph.localModel.pause() }) { Text("Pause download") }
+                else OutlinedButton(onClick = { if (choice != null) graph.model.download(choice.id, settings.wifiOnlyDownloads) else graph.localModel.download(settings.wifiOnlyDownloads) }) { Text("Download or resume") }
             }
         }
     }

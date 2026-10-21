@@ -101,7 +101,7 @@ import dev.daybook.app.capture.RecordingSession
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Outlined.Subtitles, null, Modifier.size(18.dp), tint = colors.primary)
-                    Text(if (editing) "EDIT TRANSCRIPT" else if (session.phase == "saved") "TRANSCRIPT" else "LIVE TRANSCRIPT",
+                    Text(if (editing) "EDIT TRANSCRIPT" else if (session.phase == "saved" || !session.livePreview) "TRANSCRIPT" else "LIVE TRANSCRIPT",
                         Modifier.weight(1f), style = MaterialTheme.typography.labelMedium, color = colors.primary)
                     if (active && session.transcript.isNotBlank()) Text("· draft", style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
                     if (canEditTranscript && !editing) TextButton(onClick = {
@@ -120,7 +120,7 @@ import dev.daybook.app.capture.RecordingSession
                             textStyle = MaterialTheme.typography.bodyLarge, shape = RoundedCornerShape(20.dp))
                     } else Column(Modifier.padding(20.dp).verticalScroll(scroll).then(if (reduceMotion) Modifier else Modifier.animateContentSize()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         SelectionContainer {
-                            Text(session.transcript.ifBlank { if (session.phase == "saved") "No text was captured. Your audio is saved. Tap Edit transcript to add your words, or open the note to retry transcription." else if (active && modelReady) "Your words will appear here as you speak…" else if (!modelReady) "Your audio is safe. Download the English model in Settings for live transcripts." else "Speak naturally. A small moment is enough." },
+                            Text(session.transcript.ifBlank { if (session.phase == "saved") "No text was captured. Your audio is saved. Tap Edit transcript to add your words, or open the note to retry transcription." else if (active && !session.livePreview) "Your transcript will appear after you save the recording. You can keep speaking naturally." else if (active && modelReady) "Your words will appear here as you speak…" else if (!modelReady) "Your audio is safe. Download the English model in Settings for live transcripts." else "Speak naturally. A small moment is enough." },
                                 style = MaterialTheme.typography.bodyLarge, color = if (session.transcript.isBlank()) colors.onSurfaceVariant else colors.onSurface)
                         }
                     }

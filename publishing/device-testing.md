@@ -23,3 +23,8 @@ Closed-beta feedback log:
 |---|---|---|---|---|
 
 Only replace NOT RUN with measured results. A passing build or emulator suite does not verify Samsung microphone hardware, fingerprint sensors, thermal behavior, Bluetooth routing, or background delivery.
+
+
+## 0.6 speech choices
+
+On physical Samsung and Pixel phones, download each selected model from Settings, verify airplane-mode final transcription, change selection during capture (recording keeps its initial choice), retry a saved note with another model, inspect earlier text/audio, cancel/resume downloads, remove/re-download each model, and restore model preferences from an encrypted backup. Check Whisper preview on/off, all after-save choices with the screen locked, interruption/low-storage recovery, thermal/memory use and 30-minute notes. Model test cases passed on x86-64 only; physical ARM64 inference is not yet verified.

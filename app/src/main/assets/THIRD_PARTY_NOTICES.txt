@@ -29,3 +29,5 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+Moonshine Voice 0.1.5 and English Moonshine v2 Small/Medium models: MIT. Sherpa-onnx 1.13.8: Apache-2.0. ONNX Runtime: MIT. NVIDIA Parakeet TDT 0.6B v2: CC-BY-4.0, int8 ONNX conversion by sherpa-onnx/csukuangfj. Full licenses, source links, and attribution: speech-model-licenses.txt. Models download separately and are excluded from Git, APKs, and backups.

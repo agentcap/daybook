@@ -70,15 +70,18 @@ class RecordingDiscardTest {
         val graph = compose.activity.daybook
         val before = graph.media.directory.listFiles().orEmpty().map { it.name }.toSet()
         compose.runOnUiThread {
+            // A previous test's discarded state is not an acknowledgement of this request.
+            RecordingService.session.value = dev.daybook.app.capture.RecordingSession()
             ContextCompat.startForegroundService(compose.activity, Intent(compose.activity, RecordingService::class.java))
             compose.activity.startService(Intent(compose.activity, RecordingService::class.java).setAction(RecordingService.DISCARD))
         }
-        compose.waitUntil(15000) { RecordingService.session.value.phase == "discarded" && !RecordingService.active.value }
+        try { compose.waitUntil(15000) { RecordingService.session.value.phase == "discarded" && !RecordingService.active.value } }
+        catch (e: Throwable) { throw AssertionError("Immediate discard: active=" + RecordingService.active.value + " session=" + RecordingService.session.value + " error=" + RecordingService.lastError.value, e) }
         assertTrue(graph.repository.read().entries.isEmpty())
         assertEquals(before, graph.media.directory.listFiles().orEmpty().map { it.name }.toSet())
         CaptureIntents.pending(compose.activity, 702, "record").send()
         try { compose.waitUntil(15000) { RecordingService.active.value && RecordingService.session.value.phase == "recording" && RecordingService.session.value.elapsedMs > 400 } }
-        catch (e: Exception) { throw AssertionError("Next recording: active=" + RecordingService.active.value + " session=" + RecordingService.session.value +
+        catch (e: Throwable) { throw AssertionError("Next recording: active=" + RecordingService.active.value + " session=" + RecordingService.session.value +
             " capture=" + compose.activity.capture.value + " lifecycle=" + compose.activity.lifecycle.currentState + " entries=" + graph.repository.read().entries, e) }
         val id = RecordingService.session.value.entryId
         compose.onNode(hasText("Save recording") and hasAnyAncestor(isDialog())).performClick()

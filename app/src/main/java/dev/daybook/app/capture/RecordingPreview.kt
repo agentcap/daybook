@@ -1,6 +1,7 @@
 package dev.daybook.app.capture
 
 import dev.daybook.app.AppGraph
+import dev.daybook.core.SpeechCatalog
 import dev.daybook.core.LiveTranscript
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.BufferOverflow
@@ -9,7 +10,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.math.sqrt
 
 data class RecordingSession(val entryId: String = "", val elapsedMs: Long = 0, val level: Float = 0f,
-    val bookmarks: Int = 0, val transcript: String = "", val previewStatus: String = "Preparing your microphone…", val phase: String = "ready")
+    val bookmarks: Int = 0, val transcript: String = "", val previewStatus: String = "Preparing your microphone…", val phase: String = "ready",
+    val speechModel: String = SpeechCatalog.WHISPER, val livePreview: Boolean = true)
 
 /** Audio capture never waits for inference. At most one pending six-second window is retained. */
 class RecordingPreview(private val graph: AppGraph, private val entryId: String, scope: CoroutineScope,
@@ -20,7 +22,7 @@ class RecordingPreview(private val graph: AppGraph, private val entryId: String,
     private var count = 0
     private var index = 0
     private var reported = 0
-    private val enabled = graph.model.ready()
+    private val enabled = state.value.livePreview && state.value.speechModel == SpeechCatalog.WHISPER && graph.model.ready(SpeechCatalog.WHISPER)
     private val job = if (enabled) scope.launch {
         var engine: WhisperEngine.PreviewSession? = null
         try {
@@ -48,7 +50,9 @@ class RecordingPreview(private val graph: AppGraph, private val entryId: String,
     } else null
 
     init {
-        if (!enabled) state.value = state.value.copy(previewStatus = "Download the English model in Settings for live text. Audio is being saved.")
+        if (!enabled) state.value = state.value.copy(previewStatus = if (!state.value.livePreview)
+            "${SpeechCatalog.get(state.value.speechModel).title} will transcribe after you save. Audio is being recorded."
+            else "Download Whisper in Settings for live text. Audio is being saved.")
     }
     fun feed(pcm: ByteArray, size: Int): Float {
         var energy = 0.0; var n = 0

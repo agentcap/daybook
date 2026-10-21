@@ -92,7 +92,7 @@ class PlannerAndHistoryTest {
         compose.onNodeWithText("Days journaled").assertIsDisplayed()
         compose.onNodeWithText("Calendar", substring = false).performScrollTo().performClick()
         compose.onNodeWithContentDescription("$today · 1 notes").performScrollTo().performClick()
-        compose.onNodeWithText("Today’s thought").performScrollTo().performClick()
+        compose.onNodeWithText("Today’s thought").performScrollTo().performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { it() }
         compose.onNodeWithText("Your original moment").assertIsDisplayed()
         compose.onNodeWithText("Close", substring = false).performClick()
         compose.onNodeWithText("Journal", substring = false).performScrollTo().performClick()

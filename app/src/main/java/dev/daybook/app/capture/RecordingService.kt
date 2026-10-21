@@ -81,16 +81,19 @@ class RecordingService : Service() {
         var preview: RecordingPreview? = null
         var registeredAudio: AudioRecord? = null
         var callback: AudioManager.AudioRecordingCallback? = null
+        var speechSettings = Settings()
         try {
             graph.initialized.await()
+            speechSettings = graph.preferences.read()
             check(ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) { "Microphone permission is needed." }
             check(android.os.StatFs(filesDir.path).availableBytes > 20L * 1024 * 1024) { "Free some phone storage before recording." }
             val path = graph.media.newPath("wav")
-            entry = Entry(day = day, kind = "voice", status = "recording")
+            entry = Entry(day = day, kind = "voice", status = "recording", speechModel = speechSettings.speechModel)
             attachment = Attachment(entryId = entry.id, path = path, kind = "audio", bytes = 0)
             val savedEntry = entry; val savedAttachment = attachment
             graph.media.restoreGate.withLock { check(!requestedStop) { "Recording cancelled before the microphone started." }; graph.repository.change { it.copy(entries = it.entries + savedEntry, attachments = it.attachments + savedAttachment) } }
-            session.value = RecordingSession(entryId = entry.id, phase = "recording")
+            session.value = RecordingSession(entryId = entry.id, phase = "recording", speechModel = speechSettings.speechModel,
+                livePreview = speechSettings.liveTranscripts && SpeechCatalog.get(speechSettings.speechModel).livePreview)
             preview = RecordingPreview(graph, entry.id, scope, session)
             val bufferSize = maxOf(8192, AudioRecord.getMinBufferSize(16000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT) * 2)
             audio = AudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION, 16000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, bufferSize)
@@ -148,8 +151,8 @@ class RecordingService : Service() {
             val id = entry.id
             graph.repository.change { s -> s.copy(entries = s.entries.map { if (it.id == id) it.copy(status = "pending") else it },
                 attachments = s.attachments.map { if (it.id == savedAttachment.id) it.copy(bytes = file.length()) else it }) }
-            graph.transcriptions.enqueue(id)
-            session.value = session.value.copy(phase = "saved", previewStatus = "Saved. The full transcript is being refined on this phone.")
+            graph.transcriptions.enqueue(id, modelId = speechSettings.speechModel)
+            session.value = session.value.copy(phase = "saved", previewStatus = "Saved. ${SpeechCatalog.get(speechSettings.speechModel).title} is transcribing on this phone.")
         } catch (e: Exception) {
             if (!requestedDiscard) {
                 lastError.value = (e.message ?: "Recording could not start. Please try again.").take(500)

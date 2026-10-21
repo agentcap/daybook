@@ -17,8 +17,8 @@ android {
         applicationId = "dev.daybook.app"
         minSdk = 31
         targetSdk = 37
-        versionCode = 9
-        versionName = "0.5.3-beta.1"
+        versionCode = 10
+        versionName = "0.6.0-beta.1"
         buildConfigField("String", "DEVELOPER_NAME", "\"${publicValue("developerName")}\"")
         buildConfigField("String", "SUPPORT_EMAIL", "\"${publicValue("supportEmail")}\"")
         buildConfigField("String", "PRIVACY_POLICY_URL", "\"${publicValue("privacyPolicyUrl")}\"")
@@ -61,6 +61,10 @@ ksp { arg("room.schemaLocation", "$projectDir/schemas") }
 dependencies {
     implementation(project(":core"))
     implementation(project(":local-llm"))
+    implementation(files(rootProject.file(".tools/speech-runtime/moonshine-voice-0.1.5.aar")))
+    implementation(files(rootProject.file(".tools/speech-runtime/sherpa-onnx-static-1.13.8.aar")))
+    implementation("androidx.appcompat:appcompat:1.6.1")
+    implementation("com.google.android.material:material:1.10.0")
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.activity:activity-compose:1.10.1")
     implementation("androidx.fragment:fragment-ktx:1.8.6")

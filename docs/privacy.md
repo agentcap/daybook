@@ -65,3 +65,5 @@ Backup manifests now use version 2; version 1 remains readable. Credentials and 
 Feedback is a draft shared through a user-selected app. No diagnostic upload is automatic. A public release needs real developer/contact details and a hosted policy; the local beta includes the readable policy and a publishing gate that rejects missing metadata.
 
 Recording discard is permanent for the current unfinished capture: its audio, live text and draft revisions are removed after the microphone closes. Earlier notes and reflections remain. Ordinary deletion of a saved note still uses Recently Deleted.
+
+Speech-model choices are stored in preferences, and each voice note records the model selected when recording begins. Switching models affects new recordings and explicit retries. Moonshine and Parakeet transcribe after saving. Optional live previews use Whisper only. Removing a model retains notes and recordings. Model download hosts receive connection metadata; recordings are not sent to these hosts.

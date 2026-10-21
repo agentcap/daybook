@@ -10,7 +10,7 @@ Full description:
 Daybook gives everyday moments a place to stay. Record a thought, write a note, or attach a photo, then return to a chronological journal of your day.
 
 VOICE, EVEN OFFLINE
-Download the English speech model once, then capture voice notes and see draft text without an internet connection. Pause, resume, or discard a recording, mark moments with audio bookmarks, and tap saved transcript segments to hear the original audio. Recording can continue with the screen locked, with a notification to stop and save. Each note supports up to 30 minutes of captured audio.
+Choose Whisper base.en, Moonshine v2 Small/Medium, or Parakeet TDT v2 in Settings and download its English model once. Transcribe saved voice notes without an internet connection. Whisper also offers optional live draft text. Pause, resume, or discard a recording, mark moments with audio bookmarks, and tap saved transcript segments to hear the original audio. Recording can continue with the screen locked, with a notification to stop and save. Each note supports up to 30 minutes of captured audio.
 
 YOUR ORIGINALS, PRESERVED
 Keep original audio, photos, note text, edits, and review history. Browse by day, search locally, or use the calendar and statistics. Recently Deleted keeps notes recoverable for 30 days before background maintenance removes them.

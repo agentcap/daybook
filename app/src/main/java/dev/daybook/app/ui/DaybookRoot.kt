@@ -141,7 +141,7 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
                         withContext(Dispatchers.IO) { graph.backup.restore(uri, pass) }
                         graph.cleanup.reconfigure(graph.preferences.read().reviewProvider)
                         graph.scheduler.reschedule()
-                        graph.repository.read().entries.filter { it.status == "pending" && it.deletedAt == 0L }.forEach { graph.transcriptions.enqueue(it.id) }
+                        graph.repository.read().entries.filter { it.status == "pending" && it.deletedAt == 0L }.forEach { graph.transcriptions.enqueue(it.id, modelId = it.speechModel.ifBlank { SpeechCatalog.WHISPER }) }
                         snacks.showSnackbar("Journal restored. Enter your API key separately if needed.")
                     } finally { busy = null }
                 }
@@ -171,14 +171,14 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
                 return@Surface
             }
             val cleanupInfos by remember(day) { WorkManager.getInstance(activity).getWorkInfosForUniqueWorkFlow("cleanup-$day") }.collectAsState(emptyList())
-            val modelInfos by remember { WorkManager.getInstance(activity).getWorkInfosForUniqueWorkFlow("speech-model") }.collectAsState(emptyList())
+            val modelInfos by remember(settings.speechModel) { WorkManager.getInstance(activity).getWorkInfosForUniqueWorkFlow(SpeechCatalog.workName(settings.speechModel)) }.collectAsState(emptyList())
             val localInfos by remember { WorkManager.getInstance(activity).getWorkInfosForUniqueWorkFlow(dev.daybook.app.ai.LocalModel.WORK) }.collectAsState(emptyList())
             var localRevision by remember { mutableIntStateOf(0) }
             val localReady = remember(localInfos, localRevision) { graph.localModel.ready() }
             val localInfo = localInfos.firstOrNull { !it.state.isFinished } ?: localInfos.firstOrNull()
             val cleanupInfo = cleanupInfos.firstOrNull { !it.state.isFinished } ?: cleanupInfos.firstOrNull()
             var modelRevision by remember { mutableIntStateOf(0) }
-            val modelReady = remember(modelInfos, modelRevision) { graph.model.ready() }
+            val modelReady = remember(modelInfos, modelRevision, settings.speechModel) { graph.model.ready(settings.speechModel) }
             val modelInfo = modelInfos.firstOrNull { !it.state.isFinished } ?: modelInfos.firstOrNull()
             Scaffold(containerColor = Color.Transparent, contentColor = colors.onSurface, snackbarHost = { SnackbarHost(snacks) }, bottomBar = {
                 Surface(Modifier.navigationBarsPadding().padding(horizontal = 18.dp, vertical = 8.dp).fillMaxWidth(),
@@ -215,12 +215,12 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
                         onUndo = { run { graph.repository.undoProposal(it) } }, onEntry = { selectedEntry = it })
                     3 -> {
                         var hasKey by remember { mutableStateOf(graph.keys.hasKey()) }
-                        SettingsScreen(settings, hasKey, modelReady, modelInfo, graph.media.usage(), graph.model.file.length(),
+                        SettingsScreen(settings, hasKey, modelReady, modelInfo, graph.media.usage(), graph.model.usage(),
                             day, Modifier.padding(padding), onSave = { s ->
                                 if (s.biometric) require(BiometricManager.from(activity).canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL) == BiometricManager.BIOMETRIC_SUCCESS) { "Set up a screen lock or strong biometric on this phone first." }
                                 graph.saveSettings(s)
                             }, onKey = { key -> withContext(Dispatchers.IO) { graph.keys.save(key) }; hasKey = graph.keys.hasKey() },
-                            onDownload = { graph.model.download() }, onDeleteModel = { graph.model.delete(); modelRevision++ }, onPauseDownload = { graph.model.cancel() },
+                            onDownload = { graph.model.download() }, onDeleteModel = { withContext(Dispatchers.IO) { graph.model.remove(settings.speechModel) }; modelRevision++ }, onPauseDownload = { graph.model.cancel() },
                             onBackup = { backupMode = "export" }, onRestore = { backupMode = "restore" },
                             onMarkdown = { exportMarkdown.launch("daybook-$day.md") }, onPermissions = {
                                 activity.startActivity(Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, activity.packageName))
@@ -249,7 +249,7 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
                         previewStatus = if (finalEntry.status == "error") "Audio saved. ${finalEntry.error}" else recordingSession.previewStatus)
                     else -> recordingSession
                 }
-                RecordingScreen(display, active, modelReady, onStart = ::startRecording,
+                RecordingScreen(display, active, graph.model.ready(recordingSession.speechModel), onStart = ::startRecording,
                     onStop = { activity.startService(Intent(activity, RecordingService::class.java).setAction(RecordingService.STOP)) },
                     onDismiss = { recordingSheet = false },
                     onPause = { activity.startService(Intent(activity, RecordingService::class.java).setAction(RecordingService.PAUSE)) },

@@ -3,6 +3,7 @@ import android.content.Context
 import androidx.work.*
 import dev.daybook.app.daybook
 import dev.daybook.app.data.MediaStore
+import dev.daybook.core.SpeechCatalog
 import dev.daybook.core.Revision
 import dev.daybook.core.TranscriptSegment
 import kotlinx.coroutines.*
@@ -47,9 +48,10 @@ object WhisperEngine : SpeechTranscriber {
     }
 }
 class Transcriptions(private val context: Context) {
-    fun enqueue(entryId: String, replace: Boolean = false) {
+    fun enqueue(entryId: String, replace: Boolean = false, modelId: String = context.daybook.settings.value.speechModel) {
+        SpeechCatalog.get(modelId)
         WorkManager.getInstance(context).enqueueUniqueWork("transcribe-$entryId", if (replace) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP,
-            OneTimeWorkRequestBuilder<TranscriptionWorker>().addTag("transcription").setInputData(workDataOf("entryId" to entryId))
+            OneTimeWorkRequestBuilder<TranscriptionWorker>().addTag("transcription").setInputData(workDataOf("entryId" to entryId, "modelId" to modelId))
                 .setConstraints(Constraints.Builder().setRequiresStorageNotLow(true).build()).build())
     }
     fun cancel(entryId: String) = WorkManager.getInstance(context).cancelUniqueWork("transcribe-$entryId")
@@ -61,27 +63,30 @@ class TranscriptionWorker(context: Context, params: WorkerParameters) : Coroutin
         val state = graph.repository.read()
         val entry = state.entries.find { it.id == id } ?: return@withContext Result.success()
         if (entry.deletedAt > 0 || entry.status == "ready" || entry.status == "recording") return@withContext Result.success()
-        var expectedPath: String? = null
+        val modelId = inputData.getString("modelId") ?: entry.speechModel.ifBlank { SpeechCatalog.WHISPER }
         try {
-            check(graph.model.ready()) { "Download the offline speech model in Settings, then retry. Your recording is saved." }
+            val choice = SpeechCatalog.get(modelId)
+            check(graph.model.ready(modelId)) { "Download ${choice.title} in Settings → Voice & offline speech, then retry. Your recording is saved." }
             val attachment = state.attachments.first { it.entryId == id && it.kind == "audio" }
-            expectedPath = attachment.path
             val file = graph.media.file(attachment.path)
             Wav.repair(file)
             setProgress(workDataOf("message" to "Transcribing on this phone…"))
-            val segments = WhisperEngine.timeline(graph.model.file, file)
+            val segments = graph.model.files(modelId) {
+                check(graph.model.ready(modelId)) { "This speech model was removed. Download it in Settings and retry." }
+                SpeechEngines.timeline(choice, graph.model.directory(modelId), file)
+            }
             val text = segments.joinToString(" ") { it.text }
             check(text.isNotBlank()) { "No speech was detected. Replay your audio, edit the note, or retry transcription." }
             if (isStopped) return@withContext Result.failure()
-            graph.repository.change { s -> if (s.attachments.none { it.id == attachment.id && it.path == attachment.path }) s else s.copy(
-                revisions = s.revisions + s.entries.filter { it.id == id && it.deletedAt == 0L && it.status == "pending" && it.text.isNotBlank() && it.text != text }.map { Revision(entryId = id, text = it.text) },
-                entries = s.entries.map { if (it.id == id && it.status != "ready") it.copy(originalText = text, text = text, status = "ready", error = "", segments = segments) else it },
+            graph.repository.change { s -> if (isStopped || s.attachments.none { it.id == attachment.id && it.path == attachment.path }) s else s.copy(
+                revisions = s.revisions + s.entries.filter { it.id == id && it.deletedAt == 0L && it.speechModel.ifBlank { SpeechCatalog.WHISPER } == modelId && it.status in setOf("pending", "error", "interrupted") && it.text.isNotBlank() && it.text != text }.map { Revision(entryId = id, text = it.text) },
+                entries = s.entries.map { if (it.id == id && it.deletedAt == 0L && it.speechModel.ifBlank { SpeechCatalog.WHISPER } == modelId && it.status in setOf("pending", "error", "interrupted")) it.copy(originalText = it.originalText.ifBlank { text }, text = text, status = "ready", error = "", segments = segments, speechModel = modelId) else it },
                 attachments = s.attachments.map { if (it.id == attachment.id) it.copy(bytes = file.length(), digest = MediaStore.digest(file)) else it }) }
             Result.success()
         } catch (e: CancellationException) { throw e
         } catch (e: Exception) {
             graph.repository.change { s -> s.copy(entries = s.entries.map {
-                if (it.id == id && it.status != "ready") it.copy(status = "error", error = (e.message ?: "Offline transcription failed. Audio is preserved.").take(500)) else it
+                if (!isStopped && it.id == id && it.deletedAt == 0L && it.speechModel.ifBlank { SpeechCatalog.WHISPER } == modelId && it.status in setOf("pending", "error", "interrupted")) it.copy(status = "error", error = (e.message ?: "Offline transcription failed. Audio is preserved.").take(500)) else it
             }) }
             Result.failure(workDataOf("error" to (e.message ?: "Transcription failed.").take(500)))
         }

@@ -24,8 +24,10 @@ import kotlinx.coroutines.launch
 @Composable
 fun EntryDialog(entry: Entry, state: Snapshot, graph: AppGraph, onDismiss: () -> Unit, onSave: (String) -> Unit,
     onDelete: () -> Unit, onRetry: () -> Unit) {
+    val settings by graph.settings.collectAsState()
     var text by remember(entry.id, entry.text) { mutableStateOf(entry.text) }
     var delete by remember { mutableStateOf(false) }
+    var retranscribe by remember { mutableStateOf(false) }
     var showOriginal by remember { mutableStateOf(false) }
     var player by remember { mutableStateOf<MediaPlayer?>(null) }
     var playbackError by remember { mutableStateOf("") }
@@ -92,7 +94,11 @@ fun EntryDialog(entry: Entry, state: Snapshot, graph: AppGraph, onDismiss: () ->
             if (privacyError.isNotBlank()) Text(privacyError, color = MaterialTheme.colorScheme.error)
             if (playbackError.isNotBlank()) Text(playbackError, color = MaterialTheme.colorScheme.error)
             if (entry.error.isNotBlank()) Text(entry.error, color = MaterialTheme.colorScheme.error)
-            if (entry.kind == "voice" && entry.status in setOf("error", "interrupted", "pending")) OutlinedButton(onClick = onRetry) { Text("Retry offline transcription") }
+            if (entry.kind == "voice") {
+                Text("Speech model: " + SpeechCatalog.get(entry.speechModel.ifBlank { SpeechCatalog.WHISPER }).title, style = MaterialTheme.typography.bodySmall)
+                if (entry.status in setOf("error", "interrupted", "pending")) OutlinedButton(onClick = onRetry) { Text("Retry offline transcription") }
+                if (entry.status == "ready") OutlinedButton(onClick = { retranscribe = true }) { Text("Transcribe again") }
+            }
             OutlinedTextField(text, { text = it }, Modifier.fillMaxWidth().heightIn(min = 120.dp, max = 260.dp),
                 label = { Text(if (entry.kind == "photo") "Photo note" else "Note text") }, enabled = entry.status != "recording")
             TextButton(onClick = { showOriginal = !showOriginal }) { Text(if (showOriginal) "Hide original and revisions" else "Original and revision history") }
@@ -109,6 +115,10 @@ fun EntryDialog(entry: Entry, state: Snapshot, graph: AppGraph, onDismiss: () ->
         }
     }, confirmButton = { Button(onClick = { onSave(text) }, enabled = text != entry.text && entry.status != "recording") { Text("Save changes") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } })
+    if (retranscribe) AlertDialog(onDismissRequest = { retranscribe = false }, title = { Text("Transcribe with ${SpeechCatalog.get(settings.speechModel).title}?") },
+        text = { Text("Your saved text is kept in revision history. Original audio stays saved. Save any unsaved edits before continuing.") },
+        confirmButton = { TextButton(onClick = { retranscribe = false; onRetry() }) { Text("Transcribe again") } },
+        dismissButton = { TextButton(onClick = { retranscribe = false }) { Text("Cancel") } })
     if (delete) AlertDialog(onDismissRequest = { delete = false }, title = { Text("Move this moment?") },
         text = { Text("This hides the note and its media from your journal and reviews. Restore it from Settings → Backups & storage → Recently Deleted for 30 days, or delete it permanently there. Confirmed goal activity remains.") },
         confirmButton = { Button(onClick = { player?.release(); player = null; onDelete() }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) { Text("Move to Recently Deleted") } },

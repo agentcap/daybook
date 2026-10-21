@@ -1,5 +1,5 @@
 Daybook Privacy Policy
-Updated: October 19, 2026
+Updated: October 21, 2026
 
 Daybook is a personal journal. It has no account system, advertising SDK, analytics SDK, or developer-operated journal server.
 
@@ -7,7 +7,7 @@ ON YOUR PHONE
 Journal entries, audio, photos, transcripts, revisions, goals, activity, to-dos, ideas, weekly reflections, and review history are stored in private app storage. Android provides app isolation and device encryption. The database is not separately encrypted by Daybook. Optional app lock protects interactive access and blocks screenshots; configured background recording and reflections can continue.
 
 LOCAL MODELS
-English speech transcription runs on-device with whisper.cpp. Optional on-device text reviews use Qwen 2.5 1.5B through llama.cpp. Models are downloaded from Hugging Face over HTTPS and verified before use. Model hosts and their delivery providers receive ordinary connection information, such as IP address, when downloading. Journal content is not included in model downloads. After download, local inference does not require a network or API key. Local reviews do not analyze photos.
+English speech transcription runs on-device with your selected Whisper, Moonshine v2, or Parakeet TDT v2 model. Optional on-device text reviews use Qwen 2.5 1.5B through llama.cpp. Models are downloaded from Hugging Face or download.moonshine.ai over HTTPS and verified with pinned SHA-256 checksums before use. Runtime libraries are bundled with the app. Model hosts and their delivery providers receive ordinary connection information, such as IP address, when downloading. Journal content is not included in model downloads. After download, local inference does not require a network or API key. Local reviews do not analyze photos.
 
 OPTIONAL OPENAI REVIEWS
 Only when you choose OpenAI and enable cloud consent, the app sends eligible current note text, selected attached photos, active goals, confirmed daily activity, and open to-do/idea titles directly to OpenAI using your own API key. Original audio is never included. ‘Keep this entry on-device’ excludes that entry and its photos from future OpenAI requests. Photo inclusion can be disabled separately. Derived activity and list context with private source references are excluded; independently entered goal/list titles remain context. Existing requests cannot be retracted.
@@ -33,3 +33,5 @@ Microphone access is used for user-started recording, with a foreground notifica
 
 CONTACT AND CHANGES
 The public release identifies the developer, support contact, and public policy link in Settings → Privacy policy & feedback. Local beta builds without those configured values display their beta status. This policy will be updated when data handling changes.
+
+Speech-model choices are stored in preferences, and each voice note records the model selected when recording begins. Switching models affects new recordings and explicit retries. Moonshine and Parakeet transcribe after saving. Optional live previews use Whisper only. Removing a model retains notes and recordings. Model download hosts receive connection metadata; recordings are not sent to these hosts.
