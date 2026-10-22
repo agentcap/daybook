@@ -17,8 +17,8 @@ android {
         applicationId = "dev.daybook.app"
         minSdk = 31
         targetSdk = 37
-        versionCode = 11
-        versionName = "0.6.1-beta.1"
+        versionCode = 12
+        versionName = "0.6.2-beta.1"
         buildConfigField("String", "DEVELOPER_NAME", "\"${publicValue("developerName")}\"")
         buildConfigField("String", "SUPPORT_EMAIL", "\"${publicValue("supportEmail")}\"")
         buildConfigField("String", "PRIVACY_POLICY_URL", "\"${publicValue("privacyPolicyUrl")}\"")

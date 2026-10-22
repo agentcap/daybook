@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -43,6 +44,7 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
     var initialized by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { graph.initialized.await(); initialized = true }
     val settings = preferences ?: Settings()
+    val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val dark = settings.theme == "dark" || (settings.theme == "system" && isSystemInDarkTheme())
     val reducedMotion = settings.reduceMotion || android.provider.Settings.Global.getFloat(activity.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
     DaybookTheme(dark, reducedMotion) {
@@ -181,7 +183,7 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
             val modelReady = remember(modelInfos, modelRevision, settings.speechModel) { graph.model.ready(settings.speechModel) }
             val modelInfo = modelInfos.firstOrNull { !it.state.isFinished } ?: modelInfos.firstOrNull()
             Scaffold(containerColor = Color.Transparent, contentColor = colors.onSurface, snackbarHost = { SnackbarHost(snacks) }, bottomBar = {
-                Surface(Modifier.navigationBarsPadding().padding(horizontal = 18.dp, vertical = 8.dp).fillMaxWidth(),
+                if (tab != 3 || !keyboardVisible) Surface(Modifier.navigationBarsPadding().padding(horizontal = 18.dp, vertical = 8.dp).fillMaxWidth(),
                     shape = RoundedCornerShape(36.dp), color = colors.surface.copy(alpha = 0.97f),
                     shadowElevation = 8.dp, border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.6f))) {
                 NavigationBar(containerColor = Color.Transparent, windowInsets = WindowInsets(0, 0, 0, 0), modifier = Modifier.heightIn(min = 80.dp)) {
@@ -216,7 +218,7 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
                     3 -> {
                         var hasKey by remember { mutableStateOf(graph.keys.hasKey()) }
                         SettingsScreen(settings, hasKey, modelReady, modelInfo, graph.media.usage(), graph.model.usage(),
-                            day, Modifier.padding(padding), onSave = { s ->
+                            day, Modifier.padding(padding).consumeWindowInsets(padding), onSave = { s ->
                                 if (s.biometric) require(BiometricManager.from(activity).canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL) == BiometricManager.BIOMETRIC_SUCCESS) { "Set up a screen lock or strong biometric on this phone first." }
                                 graph.saveSettings(s)
                             }, onKey = { key -> withContext(Dispatchers.IO) { graph.keys.save(key) }; hasKey = graph.keys.hasKey() },

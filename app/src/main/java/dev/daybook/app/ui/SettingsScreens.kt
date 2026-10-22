@@ -8,6 +8,13 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -134,6 +141,19 @@ fun SettingsScreen(settings: Settings, hasKey: Boolean, modelReady: Boolean, mod
     var deleteModel by remember { mutableStateOf(false) }
     var deleteLocal by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val keyboard = LocalSoftwareKeyboardController.current
+    val focus = LocalFocusManager.current
+    val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
+    val modelBringIntoView = remember { BringIntoViewRequester() }
+    val keyBringIntoView = remember { BringIntoViewRequester() }
+    var modelFocused by remember { mutableStateOf(false) }
+    var keyFocused by remember { mutableStateOf(false) }
+    var modelError by remember { mutableStateOf("") }
+    LaunchedEffect(modelFocused, keyFocused, imeBottom, modelError) {
+        withFrameNanos { }
+        if (modelFocused) modelBringIntoView.bringIntoView()
+        else if (keyFocused) keyBringIntoView.bringIntoView()
+    }
     fun task(message: String, action: suspend () -> Unit) {
         scope.launch {
             saving = true; error = ""; saved = ""
@@ -144,10 +164,16 @@ fun SettingsScreen(settings: Settings, hasKey: Boolean, modelReady: Boolean, mod
         }
     }
     fun save(value: Settings) = task("Changes saved") { JournalRules.validateSettings(value); onSave(value) }
+    fun saveModel() {
+        val value = settings.copy(model = modelDraft.trim())
+        try { JournalRules.validateSettings(value); modelError = "" }
+        catch (e: Exception) { modelError = e.message ?: "Enter a model name."; return }
+        task("Changes saved") { onSave(value); focus.clearFocus(); keyboard?.hide() }
+    }
     BackHandler(page != null) { page = null; error = ""; saved = "" }
     val scroll = key(page) { rememberScrollState() }
     LaunchedEffect(page) { draft = settings; saved = ""; error = "" }
-    Column(modifier.fillMaxSize().verticalScroll(scroll).padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(modifier.fillMaxSize().imePadding().verticalScroll(scroll).padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         if (page == null) {
             PageTitle("Your space", "Make it yours.", "A little rhythm. A little peace of mind.")
             SectionCard {
@@ -277,14 +303,30 @@ fun SettingsScreen(settings: Settings, hasKey: Boolean, modelReady: Boolean, mod
                     } else SectionCard {
                         Text(if (hasKey) "Your API key is saved" else "Connect your OpenAI key", style = MaterialTheme.typography.titleMedium)
                         Text("Your key is encrypted on this phone and excluded from backups. OpenAI API usage is billed to your account.", style = MaterialTheme.typography.bodySmall)
-                        OutlinedTextField(apiKey, { apiKey = it }, Modifier.fillMaxWidth(), label = { Text(if (hasKey) "Replace API key" else "OpenAI API key") },
-                            visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), singleLine = true)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = { val key = apiKey.trim(); task("API key saved") { onKey(key); apiKey = "" } }, enabled = apiKey.isNotBlank() && !saving) { Text("Save key") }
-                            if (hasKey) TextButton(onClick = { task("API key removed") { onKey(""); apiKey = "" } }, enabled = !saving) { Text("Remove key") }
+                        Column(Modifier.fillMaxWidth().bringIntoViewRequester(keyBringIntoView), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(apiKey, { apiKey = it }, Modifier.fillMaxWidth().onFocusChanged { keyFocused = it.isFocused },
+                                label = { Text(if (hasKey) "Replace API key" else "OpenAI API key") }, enabled = !saving,
+                                visualTransformation = PasswordVisualTransformation(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                                keyboardActions = KeyboardActions(onDone = { focus.clearFocus(); keyboard?.hide() }), singleLine = true)
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(onClick = { val key = apiKey.trim(); task("API key saved") { onKey(key); apiKey = ""; focus.clearFocus(); keyboard?.hide() } },
+                                    enabled = apiKey.isNotBlank() && !saving) { Text("Save key") }
+                                if (hasKey) TextButton(onClick = { task("API key removed") { onKey(""); apiKey = "" } }, enabled = !saving) { Text("Remove key") }
+                            }
                         }
-                        OutlinedTextField(modelDraft, { modelDraft = it }, Modifier.fillMaxWidth(), label = { Text("OpenAI model") }, singleLine = true)
-                        OutlinedButton(onClick = { save(settings.copy(model = modelDraft.trim())) }, enabled = !saving) { Text("Save model") }
+                        HorizontalDivider()
+                        Column(Modifier.fillMaxWidth().bringIntoViewRequester(modelBringIntoView), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Reflection model", style = MaterialTheme.typography.titleSmall)
+                            OutlinedTextField(modelDraft, { modelDraft = it; modelError = "" },
+                                Modifier.fillMaxWidth().onFocusChanged { modelFocused = it.isFocused },
+                                label = { Text("OpenAI model") }, singleLine = true, enabled = !saving,
+                                isError = modelError.isNotBlank(),
+                                supportingText = if (modelError.isNotBlank()) ({ Text(modelError) }) else null,
+                                keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, capitalization = KeyboardCapitalization.None, imeAction = ImeAction.Done),
+                                keyboardActions = KeyboardActions(onDone = { saveModel() }))
+                            OutlinedButton(onClick = ::saveModel, enabled = !saving) { Text("Save model") }
+                        }
                         Text("Requests disable response storage (store: false). Provider retention rules may still apply.", style = MaterialTheme.typography.bodySmall)
                     }
                 }

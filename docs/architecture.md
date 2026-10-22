@@ -101,3 +101,5 @@ Speech-engine provenance is excluded from review and proposal content fingerprin
 ## Text entry
 
 JournalTextEditor is the full-screen composer used for new notes and saved-entry edits. It keeps a saveable TextFieldValue (text and selection), a baseline for discard detection, a pinned Save action, inline save errors, and a single in-flight request. Save callbacks suspend until the repository commits; originals and revisions still use the existing repository operations. The parent keeps the open composer, selected day and entry across activity recreation. Insets account for system bars and the IME, and the compact layout hides secondary chrome in short landscape windows. Keyboard opening waits for the dialog window's focus instead of racing its creation. No database, backup or AI-provider changes were required.
+
+Settings consumes Scaffold insets before applying IME padding. Bottom navigation is suppressed during Settings text input. Focused key/model groups use BringIntoViewRequester as the keyboard viewport changes, so field actions remain reachable. Model Done uses the existing local settings validation and save path, without a provider request.

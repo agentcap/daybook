@@ -1,6 +1,22 @@
 # Verification
 
-Current release: **0.6.1-beta.1**. Earlier release results are retained below for context.
+Current release: **0.6.2-beta.1**. Earlier release results are retained below for context.
+
+## 0.6.2 Settings keyboard overlap
+
+Completed on 2026-10-21 in the isolated Android 16/API 36 x86-64 emulator:
+
+- Settings now consumes Scaffold insets and resizes its scroll viewport above the keyboard. Bottom navigation is hidden while typing in Settings.
+- Focused OpenAI model and API-key fields request visibility for their field/action groups as keyboard insets change. Save model and Save key remain reachable with the keyboard open.
+- The model keyboard uses Done to validate and save, then clears focus/dismisses the keyboard after success. Invalid identifiers show an error beside the field without changing the stored model. The API-key Done action dismisses the keyboard; saving a key remains explicit.
+- Four new keyboard regression cases passed in 14.569 seconds: actual model-field/Save bounds above the keyboard with physical Save activation, navigation return after dismissal, draft restoration and Done in landscape, inline validation/correction, and API-key Save with the keyboard open. Seven existing capture/settings and local-review configuration workflows also passed. No live API call was made; model identifiers and the temporary test key are synthetic.
+- Screenshot 37 shows actual model editing with a visible keyboard. The synthetic ui-test-model identifier is a UI fixture, not a model recommendation.
+- All 55 JVM tests passed. Lint: 0 errors, the same 43 warnings. Verification/test APK, signed APK and AAB builds, signatures, bundletool validation, private-file exclusions and all 16 native libraries' 16 KiB alignment passed.
+- The signed release upgraded personal 0.6.1-beta.1 without uninstalling and passed a cold launch. Phone/Samsung-keyboard testing remains pending. Speech/AI processing, defaults, credentials storage and backup formats are unchanged. GitHub remains source-only.
+
+APK: releases/daybook-0.6.2-beta.1.apk, 158,635,658 bytes; SHA-256 9335be085c6ae095b9c73ca357e90dc8c314af5a93faebb87d7fddcf84ef70fc.
+
+AAB: releases/daybook-0.6.2-beta.1.aab, 65,189,760 bytes; SHA-256 6a33f8db802c2ebcf030e9551ff01ec85dabd9b581297f973bf711d3ace7aea1.
 
 ## 0.6.1 A focused writing view
 

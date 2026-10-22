@@ -14,7 +14,7 @@ Synthetic sample journal, captured from the running Android app. The meal illust
 
 [GitHub repository](https://github.com/agentcap/daybook) contains source code only. APK/AAB files are local build artifacts and are not uploaded. Build an APK using the instructions below; paths under `releases/` refer to artifacts on the original build machine.
 
-1. Install `releases/daybook-0.6.1-beta.1.apk`, or build the APK below. This is a signed, non-debuggable build for personal installation.
+1. Install `releases/daybook-0.6.2-beta.1.apk`, or build the APK below. This is a signed, non-debuggable build for personal installation.
 2. Choose your waking hours, reminder interval, and nightly reflections time during onboarding. Grant notification permission for check-ins.
 3. Open **Settings → Voice & offline speech**, choose Whisper, Moonshine v2 Small/Medium, or Parakeet TDT v2, then download that model once. Recording works before downloading; retry saved recordings afterwards.
 4. Create goals from Goals → New goal. Templates include gym, cooking, laundry, blogging, learning, and 3000 calories.
@@ -44,6 +44,8 @@ The selection is saved immediately. A recording and its queued transcription kee
 New models process bounded 30-second windows to limit audio memory. Segment timestamps are approximate, and words at window boundaries may need editing. Larger models use more memory and can take longer. Current correctness checks passed on an x86-64 Android 36 emulator; phone speed, battery use, and sustained transcription still need physical Pixel/Samsung testing. See [speech runtime and model pins](docs/speech-models.md) and [the model chooser](docs/screenshots/33-speech-models.png).
 
 ## Choose local or cloud reviews
+
+In OpenAI settings, the model field and Save model control scroll above the keyboard. Bottom navigation is hidden while typing in Settings. Use **Save model** or the keyboard’s **Done** action to save; invalid names show an inline error. The API-key field also keeps its Save control reachable. [See model editing with the keyboard open](docs/screenshots/37-openai-model-keyboard.png).
 
 In **Settings → AI reflections**, choose **On-device** for note-text reflections, summaries, goal progress, and new goal/to-do/idea suggestions without an API key. Download the Qwen 2.5 1.5B review model once (1.1 GB), then use **Create daily reflection** or automatic nightly reflections in airplane mode. This download is separate from the speech model. Its hash is checked before installation; pause/resume and removal are available in Settings.
 
@@ -93,7 +95,7 @@ Enable **Settings → Privacy & lock → Fingerprint & screen lock** to show And
 - Stop using **Stop & save** in the persistent recording notification or on Today. Repeated widget taps while recording do not create another recording.
 - After updating, touch and hold an existing widget to resize it, or remove/re-add it to apply the smaller default footprint. Removing a widget does not delete journal entries. Launcher cell sizes vary; [Android widget sizing](https://developer.android.com/develop/ui/views/appwidgets/layouts) describes the requested defaults.
 
-Install this APK over 0.1.0, 0.2.0, 0.3.0, 0.4.0, 0.4.1, 0.5.0-beta.1, 0.5.1-beta.1, 0.5.2-beta.1, 0.5.3-beta.1, or 0.6.0-beta.1 to retain existing notes and settings. It uses the same private signing key; no uninstall is needed.
+Install this APK over 0.1.0, 0.2.0, 0.3.0, 0.4.0, 0.4.1, 0.5.0-beta.1, 0.5.1-beta.1, 0.5.2-beta.1, 0.5.3-beta.1, 0.6.0-beta.1, or 0.6.1-beta.1 to retain existing notes and settings. It uses the same private signing key; no uninstall is needed.
 
 ## Build
 
