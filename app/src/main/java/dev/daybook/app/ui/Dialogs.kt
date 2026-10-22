@@ -6,6 +6,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.*
 import androidx.compose.ui.unit.dp
@@ -14,18 +15,11 @@ import dev.daybook.core.*
 import java.time.*
 import kotlinx.coroutines.launch
 
-@Composable fun WriteDialog(onDismiss: () -> Unit, onSave: (String) -> Unit) {
-    var text by remember { mutableStateOf("") }
-    AlertDialog(onDismissRequest = onDismiss, title = { Text("Keep a moment") },
-        text = { OutlinedTextField(text, { text = it }, Modifier.fillMaxWidth().heightIn(min = 160.dp, max = 300.dp), label = { Text("What is on your mind?") }) },
-        confirmButton = { Button(onClick = { onSave(text) }, enabled = text.isNotBlank()) { Text("Save note") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } })
-}
 @Composable
-fun EntryDialog(entry: Entry, state: Snapshot, graph: AppGraph, onDismiss: () -> Unit, onSave: (String) -> Unit,
+fun EntryDialog(entry: Entry, state: Snapshot, graph: AppGraph, onDismiss: () -> Unit, onSave: suspend (String) -> Unit,
     onDelete: () -> Unit, onRetry: () -> Unit) {
     val settings by graph.settings.collectAsState()
-    var text by remember(entry.id, entry.text) { mutableStateOf(entry.text) }
+    var editing by rememberSaveable(entry.id) { mutableStateOf(false) }
     var delete by remember { mutableStateOf(false) }
     var retranscribe by remember { mutableStateOf(false) }
     var showOriginal by remember { mutableStateOf(false) }
@@ -56,9 +50,12 @@ fun EntryDialog(entry: Entry, state: Snapshot, graph: AppGraph, onDismiss: () ->
         } catch (_: Exception) { player?.release(); player = null; playbackError = "The saved recording could not be opened." }
     }
     DisposableEffect(entry.id) { onDispose { player?.release() } }
-    AlertDialog(onDismissRequest = onDismiss, title = { Text("Your original moment") }, text = {
+    if (!editing) AlertDialog(onDismissRequest = onDismiss, title = { Text("Your original moment") }, text = {
         Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(Instant.ofEpochMilli(entry.created).atZone(ZoneId.of(entry.zone)).toString(), style = MaterialTheme.typography.labelSmall)
+            OutlinedButton(onClick = { player?.release(); player = null; editing = true }, enabled = entry.status != "recording") {
+                Text(if (entry.kind == "photo") "Edit photo note" else "Edit note")
+            }
             state.attachments.filter { it.entryId == entry.id && it.kind == "photo" }.forEach {
                 coil.compose.AsyncImage(graph.media.file(it.path), "Original journal photo", Modifier.fillMaxWidth().heightIn(max = 280.dp))
             }
@@ -99,8 +96,7 @@ fun EntryDialog(entry: Entry, state: Snapshot, graph: AppGraph, onDismiss: () ->
                 if (entry.status in setOf("error", "interrupted", "pending")) OutlinedButton(onClick = onRetry) { Text("Retry offline transcription") }
                 if (entry.status == "ready") OutlinedButton(onClick = { retranscribe = true }) { Text("Transcribe again") }
             }
-            OutlinedTextField(text, { text = it }, Modifier.fillMaxWidth().heightIn(min = 120.dp, max = 260.dp),
-                label = { Text(if (entry.kind == "photo") "Photo note" else "Note text") }, enabled = entry.status != "recording")
+            SelectionContainer { Text(entry.text.ifBlank { "No note text yet." }, style = journalWritingStyle()) }
             TextButton(onClick = { showOriginal = !showOriginal }) { Text(if (showOriginal) "Hide original and revisions" else "Original and revision history") }
             if (showOriginal) {
                 Text("Original", style = MaterialTheme.typography.titleSmall)
@@ -113,8 +109,10 @@ fun EntryDialog(entry: Entry, state: Snapshot, graph: AppGraph, onDismiss: () ->
             }
             TextButton(onClick = { delete = true }, enabled = entry.status != "recording", colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("Move note to Recently Deleted") }
         }
-    }, confirmButton = { Button(onClick = { onSave(text) }, enabled = text != entry.text && entry.status != "recording") { Text("Save changes") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } })
+    }, confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } })
+    if (editing) JournalTextEditor(title = if (entry.kind == "photo") "Edit photo note" else "Edit note",
+        day = entry.day, label = if (entry.kind == "photo") "Photo note" else "Note text",
+        initialText = entry.text, saveLabel = "Save changes", onDismiss = { editing = false }, onSave = onSave)
     if (retranscribe) AlertDialog(onDismissRequest = { retranscribe = false }, title = { Text("Transcribe with ${SpeechCatalog.get(settings.speechModel).title}?") },
         text = { Text("Your saved text is kept in revision history. Original audio stays saved. Save any unsaved edits before continuing.") },
         confirmButton = { TextButton(onClick = { retranscribe = false; onRetry() }) { Text("Transcribe again") } },

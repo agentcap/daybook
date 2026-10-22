@@ -4,7 +4,7 @@ A personal Android journal for thoughts, voice notes, everyday photos, and the g
 
 ## Preview
 
-Synthetic sample journal, captured from the running Android app. The meal illustration, review text and planning suggestions shown in the screenshots are fixtures. The recording screenshot shows actual emulator capture with no detected speech. Transcript-editor screenshots use synthetic text.
+Synthetic sample journal, captured from the running Android app. The meal illustration, review text and planning suggestions shown in the screenshots are fixtures. The recording screenshot shows actual emulator capture with no detected speech. Transcript and note-editor screenshots use synthetic text; the dark save-error screenshot simulates a failed save.
 
 | Today | Journal | Settings |
 | --- | --- | --- |
@@ -14,7 +14,7 @@ Synthetic sample journal, captured from the running Android app. The meal illust
 
 [GitHub repository](https://github.com/agentcap/daybook) contains source code only. APK/AAB files are local build artifacts and are not uploaded. Build an APK using the instructions below; paths under `releases/` refer to artifacts on the original build machine.
 
-1. Install `releases/daybook-0.6.0-beta.1.apk`, or build the APK below. This is a signed, non-debuggable build for personal installation.
+1. Install `releases/daybook-0.6.1-beta.1.apk`, or build the APK below. This is a signed, non-debuggable build for personal installation.
 2. Choose your waking hours, reminder interval, and nightly reflections time during onboarding. Grant notification permission for check-ins.
 3. Open **Settings → Voice & offline speech**, choose Whisper, Moonshine v2 Small/Medium, or Parakeet TDT v2, then download that model once. Recording works before downloading; retry saved recordings afterwards.
 4. Create goals from Goals → New goal. Templates include gym, cooking, laundry, blogging, learning, and 3000 calories.
@@ -51,6 +51,16 @@ Local reviews preserve original notes and use the same source checks and approva
 
 Switching providers requeues unfinished cleanup with the appropriate network requirements. A request already sent to OpenAI cannot be retracted. The local model stays outside APKs, Git, and backups; download it again after restoring on a new phone. See [local model details](docs/local-model.md).
 
+## Room to write
+
+Write opens a full-screen editor with a date, a spacious note field, and a Save button that remains above the keyboard. The keyboard opens automatically; sentences use your keyboard's capitalization and correction settings. A word count and keyboard show/hide button sit below the editor. The layout compacts in landscape.
+
+Draft text and cursor selection survive activity recreation and rotation. Closing a changed draft asks whether to keep writing or discard it. Save errors keep your words on screen, and Save is disabled during a request to prevent repeat submissions. Notes are saved only when you tap Save; this is not automatic draft storage after you close the editor. With a hardware keyboard, Ctrl+Enter saves.
+
+Open a saved entry and choose **Edit note** (or **Edit photo note**) for the same focused view. Saving retains original text and revision history. The recording transcript editor uses the same writing font and sentence keyboard options.
+
+[Portrait writing with the keyboard](docs/screenshots/34-writing-note.png) · [Landscape writing](docs/screenshots/35-writing-landscape.png) · [Dark editor with a simulated save error](docs/screenshots/36-writing-save-error-dark.png).
+
 ## Recording, reflection, and plans
 
 The recording view shows elapsed time and microphone levels. With Whisper selected, optional local draft transcripts appear while recording. Moonshine and Parakeet transcribe after saving. Download your selected model once, then use it offline. Previews process short windows beginning after three seconds; text can arrive later on slower devices. Pause and resume without adding pause-time silence. Use Discard to confirm removal of the current recording and its live draft; earlier entries and reflections remain saved. Mark a moment with an audio bookmark; after processing, use Transcript timeline in the note to seek to a segment of the original audio. Segment times are approximate. Stopping saves the original audio and queues a fuller transcription. On that same screen, tap **Edit transcript**, correct or add text, then **Save changes**. Editing also works while the fuller transcript is processing: incoming text does not replace your draft, and saved corrections are protected from later transcription. Cancel returns to the saved transcript; closing with unsaved edits asks before discarding them. Original audio and transcript revisions stay saved. Minimize the view to browse the app, or lock the screen while recording. Draft text survives a failed final transcription.
@@ -83,7 +93,7 @@ Enable **Settings → Privacy & lock → Fingerprint & screen lock** to show And
 - Stop using **Stop & save** in the persistent recording notification or on Today. Repeated widget taps while recording do not create another recording.
 - After updating, touch and hold an existing widget to resize it, or remove/re-add it to apply the smaller default footprint. Removing a widget does not delete journal entries. Launcher cell sizes vary; [Android widget sizing](https://developer.android.com/develop/ui/views/appwidgets/layouts) describes the requested defaults.
 
-Install this APK over 0.1.0, 0.2.0, 0.3.0, 0.4.0, 0.4.1, 0.5.0-beta.1, 0.5.1-beta.1, 0.5.2-beta.1, or 0.5.3-beta.1 to retain existing notes and settings. It uses the same private signing key; no uninstall is needed.
+Install this APK over 0.1.0, 0.2.0, 0.3.0, 0.4.0, 0.4.1, 0.5.0-beta.1, 0.5.1-beta.1, 0.5.2-beta.1, 0.5.3-beta.1, or 0.6.0-beta.1 to retain existing notes and settings. It uses the same private signing key; no uninstall is needed.
 
 ## Build
 

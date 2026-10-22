@@ -117,7 +117,8 @@ import dev.daybook.app.capture.RecordingSession
                         OutlinedTextField(draft, { draft = it; editError = "" },
                             modifier = Modifier.fillMaxSize().padding(8.dp).focusRequester(focus),
                             label = { Text("Transcript") }, enabled = !saving,
-                            textStyle = MaterialTheme.typography.bodyLarge, shape = RoundedCornerShape(20.dp))
+                            textStyle = journalWritingStyle(), shape = RoundedCornerShape(20.dp),
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Sentences, autoCorrectEnabled = true))
                     } else Column(Modifier.padding(20.dp).verticalScroll(scroll).then(if (reduceMotion) Modifier else Modifier.animateContentSize()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         SelectionContainer {
                             Text(session.transcript.ifBlank { if (session.phase == "saved") "No text was captured. Your audio is saved. Tap Edit transcript to add your words, or open the note to retry transcription." else if (active && !session.livePreview) "Your transcript will appear after you save the recording. You can keep speaking naturally." else if (active && modelReady) "Your words will appear here as you speak…" else if (!modelReady) "Your audio is safe. Download the English model in Settings for live transcripts." else "Speak naturally. A small moment is enough." },

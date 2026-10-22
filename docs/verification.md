@@ -1,6 +1,24 @@
 # Verification
 
-Current release: **0.6.0-beta.1**. Earlier release results are retained below for context.
+Current release: **0.6.1-beta.1**. Earlier release results are retained below for context.
+
+## 0.6.1 A focused writing view
+
+Completed on 2026-10-21 in the isolated Android 16/API 36 x86-64 emulator:
+
+- New notes use a full-screen composer with a date, spacious scrollable text area, sentence keyboard options, pinned Save, word count, and keyboard show/hide control. Secondary chrome and the field label collapse in short landscape windows so the active line remains usable above the IME.
+- The editor waits for its own dialog window to gain focus before showing the keyboard. Its controls use the dialog's keyboard connection. Text/cursor, the selected date, and an open composer survive activity recreation. Close asks before discarding changed drafts.
+- Saved entries open the same composer through Edit note or Edit photo note; the action appears above long content. Repository saves preserve originals and revisions. Save callbacks await completion, disable repeat submission, and keep text visible with an inline error after failure. Ctrl+Enter is also handled for hardware keyboards.
+- All 15 affected Android workflows passed together in 57.272 seconds: four new editor tests, existing journal/goal/search and original-note access, both widget shortcuts, all three recording-transcript editor cases, and calendar/stats/list workflows. After the compact layout adjustment, all four editor cases passed again in 19.747 seconds, including actual typing at the retained cursor after rotation.
+- Checks cover multiline draft/recreation/rotation, an actually visible software keyboard, show/hide controls, accessible Save, unsaved close/keep/discard, corrected saved notes and retained originals, and inline error recovery with duplicate in-flight save prevention. The save-error case is a simulated callback failure, not an actual low-storage test.
+- Screenshots 34–36 show portrait typing, landscape typing, and a dark-theme simulated save failure with synthetic text. Rotation/window animations were allowed to finish before capture. Physical Samsung/Pixel keyboards, hardware Ctrl+Enter, TalkBack and extreme font scaling were not independently verified in this update.
+- All 55 JVM tests passed (38 core, 17 app). Android lint reports 0 errors and the existing 43 warnings. Verification/test APK, signed personal APK and signed AAB builds passed.
+- APK/AAB signatures, bundletool validation, private-file exclusions, ZIP alignment and all 16 native libraries' 16 KiB ELF alignment passed. The signed APK upgraded personal 0.6.0-beta.1 without uninstalling and passed a cold launch.
+- No changes to speech engines, model downloads, AI providers, storage schema, backup format, or schedules. Prior model/backup results apply and were not repeated. GitHub remains source-only.
+
+APK: releases/daybook-0.6.1-beta.1.apk, 158,635,654 bytes; SHA-256 80d511bb514c8ad48ad35e24074ecc3f525f32e2240af8eabf03508dfcbae333.
+
+AAB: releases/daybook-0.6.1-beta.1.aab, 65,183,323 bytes; SHA-256 f01f1f3a0b8849a906f5f930ad8383873233e51984bcd93e29b28f4ecb4e4613.
 
 ## 0.6.0 Selectable offline speech
 

@@ -69,22 +69,22 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
                     catch (e: CancellationException) { throw e }
                     catch (e: Exception) { snacks.showSnackbar(e.message?.take(500) ?: "That could not be completed. Please try again.") } }
             }
-            var tab by remember { mutableIntStateOf(0) }
+            var tab by rememberSaveable { mutableIntStateOf(0) }
             var today by remember { mutableStateOf(LocalDate.now()) }
-            var day by remember { mutableStateOf(today.toString()) }
+            var day by rememberSaveable { mutableStateOf(today.toString()) }
             LaunchedEffect(Unit) {
                 while (true) { delay(60_000); val next = LocalDate.now(); if (day == today.toString()) day = next.toString(); today = next }
             }
             var toolsPage by remember { mutableStateOf<String?>(null) }
             var cloudPreviewDay by remember { mutableStateOf<String?>(null) }
-            var write by remember { mutableStateOf(false) }
+            var write by rememberSaveable { mutableStateOf(false) }
             var recordingSheet by rememberSaveable { mutableStateOf(false) }
             var listKind by remember { mutableStateOf<String?>(null) }
             var editingItem by remember { mutableStateOf<ListItem?>(null) }
             var selectedProposal by remember { mutableStateOf<Proposal?>(null) }
             var initiallySuggestions by remember { mutableStateOf(false) }
             var photo by remember { mutableStateOf(false) }
-            var selectedEntry by remember { mutableStateOf<String?>(null) }
+            var selectedEntry by rememberSaveable { mutableStateOf<String?>(null) }
             var newGoal by remember { mutableStateOf(false) }
             var logGoal by remember { mutableStateOf<String?>(null) }
             var selectedSuggestion by remember { mutableStateOf<Suggestion?>(null) }
@@ -240,7 +240,7 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
                 }
             }
             }
-            if (write) WriteDialog(onDismiss = { write = false }) { text -> run { graph.repository.addText(day, text); write = false } }
+            if (write) WriteDialog(onDismiss = { write = false }, day = day) { text -> graph.repository.addText(day, text); write = false }
             if (recordingSheet) {
                 val finalEntry = state.entries.find { it.id == recordingSession.entryId }
                 val display = when {
@@ -271,7 +271,7 @@ fun DaybookRoot(graph: AppGraph, activity: MainActivity) {
                 dismissButton = { TextButton(onClick = { photo = false; picker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) { Text("Choose photos") } })
             selectedEntry?.let { id -> state.entries.firstOrNull { it.id == id }?.let { entry ->
                 EntryDialog(entry, state, graph, onDismiss = { selectedEntry = null },
-                    onSave = { text -> run { graph.repository.editEntry(id, text); selectedEntry = null } },
+                    onSave = { text -> graph.repository.editEntry(id, text); selectedEntry = null },
                     onDelete = { run { graph.deleteEntry(id); selectedEntry = null } },
                     onRetry = { run { graph.retryTranscription(id) } })
             } }
